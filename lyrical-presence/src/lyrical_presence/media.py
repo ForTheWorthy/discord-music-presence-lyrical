@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Callable
 
 from lyrical_presence.models import Track
+from lyrical_presence.normalize import normalize_track
 
 log = logging.getLogger(__name__)
 
@@ -128,14 +129,27 @@ class WindowsSmtcBackend(MediaBackend):
             position = timeline.position.total_seconds() if timeline.position else 0.0
             playing = int(playback.playback_status) == 4  # Playing
 
-            return Track(
-                title=title,
-                artist=artist,
-                album=album,
-                duration_seconds=duration if duration and duration > 0 else None,
-                position_seconds=position,
-                playing=playing,
-                player="Windows Media",
+            # Apple Music on Windows often packs "Artist — Album" into artist
+            # and leaves album_title empty. Normalize before returning.
+            app_name = ""
+            try:
+                app_name = (
+                    session.source_app_user_model_id or ""
+                ).split("!")[0].split(".")[-1]
+            except Exception:  # noqa: BLE001
+                app_name = ""
+            player = app_name or "Windows Media"
+
+            return normalize_track(
+                Track(
+                    title=title,
+                    artist=artist,
+                    album=album,
+                    duration_seconds=duration if duration and duration > 0 else None,
+                    position_seconds=position,
+                    playing=playing,
+                    player=player,
+                )
             )
 
         try:

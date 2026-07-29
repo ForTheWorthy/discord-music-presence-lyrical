@@ -9,6 +9,7 @@ from lyrical_presence.lrc import line_at
 from lyrical_presence.lrclib import LrclibClient
 from lyrical_presence.media import MediaBackend
 from lyrical_presence.models import Lyrics, Track
+from lyrical_presence.normalize import normalize_track
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +65,8 @@ class LyricPresenceService:
                 self._current_identity = None
                 self._last_lyric_text = None
             return
+
+        track = normalize_track(track)
 
         if not track.playing and self.config.clear_on_pause:
             self.presence.clear()
