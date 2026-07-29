@@ -2,6 +2,8 @@
   "client_id": "YOUR_DISCORD_APPLICATION_CLIENT_ID",
   "poll_interval_seconds": 0.25,
   "lyric_lead_seconds": 0.35,
+  "max_lyric_chars": 40,
+  "split_long_lyrics": true,
   "clear_on_pause": false,
   "show_progress": true,
   "show_album_cover": true,
