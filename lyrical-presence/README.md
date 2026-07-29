@@ -53,7 +53,7 @@ cp lyrical-presence.example.json lyrical-presence.json
 
 Optional: under Discord Developer Portal → your app → Rich Presence → Art Assets, you can add images later; lyrics work without them.
 
-If lyrics still feel a bit late, raise `lyric_lead_seconds` in the config (e.g. `0.75`) so lines switch slightly early to offset Discord update latency.
+If lyrics still feel a bit late, raise `lyric_lead_seconds` in the config (e.g. `0.35`). Keep it modest — a large lead can skip very short lines. Discord is only updated when the lyric line changes.
 
 ## Run
 

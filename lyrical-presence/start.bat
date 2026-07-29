@@ -14,7 +14,6 @@ if not exist "lyrical-presence.json" (
     copy /Y "lyrical-presence.example.json" "lyrical-presence.json" >nul
     echo.
     echo Edit lyrical-presence.json and set your Discord client_id, then run start.bat again.
-    echo Your client ID: 1532107920198598747
     notepad "lyrical-presence.json"
     exit /b 1
   )

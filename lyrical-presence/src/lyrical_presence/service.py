@@ -31,7 +31,8 @@ class SyncConfig:
     music_symbol_interval_seconds: float = 9999.0
     music_symbol_repeat: int = 3
     # Switch lyric lines slightly early to offset Discord/OS update latency.
-    lyric_lead_seconds: float = 0.5
+    # Keep this modest so very short lines are not skipped.
+    lyric_lead_seconds: float = 0.2
     show_album_cover: bool = True
 
 
@@ -59,6 +60,7 @@ class LyricPresenceService:
         else:
             self.lyrics_fetcher = build_default_fetcher()
         self._lyrics_cache: dict[tuple[str, str, str], Lyrics | None] = {}
+        self._cover_cache: dict[tuple[str, str, str], str | None] = {}
         self._current_identity: tuple[str, str, str] | None = None
         self._last_lyric_text: str | None = None
         self._running = False
@@ -113,13 +115,20 @@ class LyricPresenceService:
         if not track.playing:
             lyric_text = f"{self.config.paused_lyric_prefix}{lyric_text}"
 
-        if lyric_text != self._last_lyric_text:
-            log.info("Lyric: %s", lyric_text)
-            self._last_lyric_text = lyric_text
+        # Only talk to Discord when the displayed lyric line changes.
+        # This avoids rate limits from progress/timestamp churn and reduces
+        # dropped updates when lines are short.
+        if lyric_text == self._last_lyric_text:
+            return
+
+        log.info("Lyric: %s", lyric_text)
+        self._last_lyric_text = lyric_text
 
         cover_url = None
         if self.config.show_album_cover:
-            cover_url = self.cover_client.cover_url_for(track)
+            if identity not in self._cover_cache:
+                self._cover_cache[identity] = self.cover_client.cover_url_for(track)
+            cover_url = self._cover_cache[identity]
 
         self.presence.update_lyrics(
             track,

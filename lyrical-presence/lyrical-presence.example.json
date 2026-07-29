@@ -1,7 +1,7 @@
 {
   "client_id": "YOUR_DISCORD_APPLICATION_CLIENT_ID",
   "poll_interval_seconds": 0.1,
-  "lyric_lead_seconds": 0.5,
+  "lyric_lead_seconds": 0.2,
   "clear_on_pause": false,
   "show_progress": true,
   "show_album_cover": true,

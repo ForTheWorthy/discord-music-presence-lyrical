@@ -78,6 +78,43 @@ def test_service_updates_presence_when_lyric_line_changes():
     assert "large_image" not in transport.updates[0]
 
 
+def test_service_does_not_update_discord_until_lyric_changes():
+    lines = (LyricLine(0.0, "same line"),)
+    lyrics = Lyrics(
+        track_name="Song",
+        artist_name="Artist",
+        album_name="Album",
+        duration=100,
+        instrumental=False,
+        synced_lines=lines,
+    )
+    positions = iter([1.0, 2.0, 3.0, 4.0])
+
+    def provider():
+        return Track(
+            title="Song",
+            artist="Artist",
+            duration_seconds=100,
+            position_seconds=next(positions),
+            playing=True,
+        )
+
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport)
+    service = LyricPresenceService(
+        media=StaticTrackBackend(provider),
+        lyrics_client=FakeLyricsClient(lyrics),
+        presence=presence,
+        config=SyncConfig(show_progress=True, show_album_cover=False, lyric_lead_seconds=0),
+    )
+    service.tick()
+    service.tick()
+    service.tick()
+    service.tick()
+    assert len(transport.updates) == 1
+    assert transport.updates[0]["details"] == "same line"
+
+
 def test_service_falls_back_to_music_symbols_when_no_lyrics():
     def provider():
         return Track("Song", "Artist", duration_seconds=90, position_seconds=10, playing=True)
