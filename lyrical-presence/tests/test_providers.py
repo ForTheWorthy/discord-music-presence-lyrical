@@ -19,7 +19,7 @@ class DummySession:
         self.mapping = mapping
         self.headers = {}
 
-    def get(self, url, timeout=None):
+    def get(self, url, params=None, timeout=None):
         for key, payload in self.mapping.items():
             if key in url:
                 return DummyResponse(200, payload)
