@@ -1,0 +1,6 @@
+{
+  "client_id": "YOUR_DISCORD_APPLICATION_CLIENT_ID",
+  "poll_interval_seconds": 0.75,
+  "clear_on_pause": false,
+  "show_progress": true
+}

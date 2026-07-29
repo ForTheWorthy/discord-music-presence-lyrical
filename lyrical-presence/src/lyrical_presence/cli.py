@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import os
+from pathlib import Path
+
+from lyrical_presence.discord_rpc import DiscordPresence
+from lyrical_presence.lrclib import LrclibClient
+from lyrical_presence.media import create_media_backend
+from lyrical_presence.service import LyricPresenceService, SyncConfig
+
+log = logging.getLogger(__name__)
+
+DEFAULT_CONFIG_PATHS = (
+    Path.cwd() / "lyrical-presence.json",
+    Path.home() / ".config" / "lyrical-presence" / "config.json",
+)
+
+
+def load_config(path: Path | None) -> dict:
+    candidates = [path] if path else list(DEFAULT_CONFIG_PATHS)
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if candidate.is_file():
+            with candidate.open(encoding="utf-8") as handle:
+                data = json.load(handle)
+            if not isinstance(data, dict):
+                raise SystemExit(f"Config file must contain a JSON object: {candidate}")
+            log.info("Loaded config from %s", candidate)
+            return data
+    return {}
+
+
+class _ConsoleTransport:
+    """Dry-run transport that prints presence updates."""
+
+    def update(self, **payload):
+        details = payload.get("details")
+        state = payload.get("state")
+        print(f"[presence] {details} | {state}", flush=True)
+
+    def clear(self):
+        print("[presence] cleared", flush=True)
+
+    def close(self):
+        return None
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="lyrical-presence",
+        description=(
+            "Show the currently playing song's lyrics line-by-line "
+            "in Discord Rich Presence."
+        ),
+    )
+    parser.add_argument(
+        "--client-id",
+        default=os.environ.get("DISCORD_CLIENT_ID"),
+        help="Discord application client ID (or set DISCORD_CLIENT_ID)",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help="Optional JSON config path",
+    )
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=None,
+        help="How often to poll media playback (seconds)",
+    )
+    parser.add_argument(
+        "--clear-on-pause",
+        action="store_true",
+        help="Clear Discord presence while media is paused",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Do not show a Discord playback progress bar",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print lyric updates to the console without connecting to Discord",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable debug logging",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+    config = load_config(args.config)
+    client_id = args.client_id or config.get("client_id")
+    if not args.dry_run and not client_id:
+        parser.error(
+            "Discord client ID required. Pass --client-id, set DISCORD_CLIENT_ID, "
+            "or add client_id to lyrical-presence.json (or use --dry-run)"
+        )
+
+    sync = SyncConfig(
+        poll_interval_seconds=float(
+            args.poll_interval
+            if args.poll_interval is not None
+            else config.get("poll_interval_seconds", 0.75)
+        ),
+        clear_on_pause=bool(args.clear_on_pause or config.get("clear_on_pause", False)),
+        show_progress=not bool(args.no_progress or config.get("show_progress") is False),
+    )
+
+    presence = (
+        DiscordPresence(str(client_id or "dry-run"), transport=_ConsoleTransport())
+        if args.dry_run
+        else DiscordPresence(str(client_id))
+    )
+    service = LyricPresenceService(
+        media=create_media_backend(),
+        lyrics_client=LrclibClient(),
+        presence=presence,
+        config=sync,
+    )
+    service.run_forever()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
