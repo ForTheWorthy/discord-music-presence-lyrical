@@ -4,6 +4,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 
+from lyrical_presence.clock import PlaybackClock
 from lyrical_presence.discord_rpc import DiscordPresence
 from lyrical_presence.lrc import line_at
 from lyrical_presence.lrclib import LrclibClient
@@ -17,7 +18,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class SyncConfig:
-    poll_interval_seconds: float = 0.75
+    poll_interval_seconds: float = 0.25
     clear_on_pause: bool = False
     show_progress: bool = True
     paused_lyric_prefix: str = "⏸ "
@@ -25,6 +26,8 @@ class SyncConfig:
     music_symbols: tuple[str, ...] = field(default_factory=lambda: DEFAULT_MUSIC_SYMBOLS)
     music_symbol_interval_seconds: float = 1.5
     music_symbol_repeat: int = 3
+    # Switch lyric lines slightly early to offset Discord/OS update latency.
+    lyric_lead_seconds: float = 0.35
 
 
 class LyricPresenceService:
@@ -45,6 +48,7 @@ class LyricPresenceService:
         self._current_identity: tuple[str, str, str] | None = None
         self._last_lyric_text: str | None = None
         self._running = False
+        self._clock = PlaybackClock()
 
     def run_forever(self) -> None:
         self.presence.connect()
@@ -52,8 +56,12 @@ class LyricPresenceService:
         log.info("Lyrical Presence is running (poll every %.2fs)", self.config.poll_interval_seconds)
         try:
             while self._running:
+                started = time.monotonic()
                 self.tick()
-                time.sleep(self.config.poll_interval_seconds)
+                elapsed = time.monotonic() - started
+                delay = self.config.poll_interval_seconds - elapsed
+                if delay > 0:
+                    time.sleep(delay)
         except KeyboardInterrupt:
             log.info("Interrupted, shutting down")
         finally:
@@ -71,7 +79,7 @@ class LyricPresenceService:
                 self._last_lyric_text = None
             return
 
-        track = normalize_track(track)
+        track = self._clock.resolve(normalize_track(track))
 
         if not track.playing and self.config.clear_on_pause:
             self.presence.clear()
@@ -85,7 +93,8 @@ class LyricPresenceService:
             log.info("Now playing: %s — %s", track.artist, track.title)
 
         lyrics = self._lyrics_for(track)
-        lyric_text = self._presence_text(track, lyrics)
+        lookup_track = self._with_lyric_lead(track)
+        lyric_text = self._presence_text(lookup_track, lyrics)
 
         if not track.playing:
             lyric_text = f"{self.config.paused_lyric_prefix}{lyric_text}"
@@ -97,6 +106,23 @@ class LyricPresenceService:
             track,
             lyric_text,
             show_progress=self.config.show_progress,
+        )
+
+    def _with_lyric_lead(self, track: Track) -> Track:
+        lead = max(self.config.lyric_lead_seconds, 0.0)
+        if lead <= 0 or not track.playing:
+            return track
+        position = track.position_seconds + lead
+        if track.duration_seconds and track.duration_seconds > 0:
+            position = min(position, track.duration_seconds)
+        return Track(
+            title=track.title,
+            artist=track.artist,
+            album=track.album,
+            duration_seconds=track.duration_seconds,
+            position_seconds=position,
+            playing=track.playing,
+            player=track.player,
         )
 
     def _lyrics_for(self, track: Track) -> Lyrics | None:

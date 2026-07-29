@@ -51,6 +51,8 @@ cp lyrical-presence.example.json lyrical-presence.json
 
 Optional: under Discord Developer Portal → your app → Rich Presence → Art Assets, you can add images later; lyrics work without them.
 
+If lyrics still feel a bit late, raise `lyric_lead_seconds` in the config (e.g. `0.5` or `0.75`) so lines switch slightly early to offset Discord update latency.
+
 ## Run
 
 ```bash
@@ -63,7 +65,7 @@ Play a song in any media player your OS exposes (Spotify, browsers with MPRIS/SM
 
 | Flag | Meaning |
 | --- | --- |
-| `--poll-interval 0.5` | Poll media position more often |
+| `--poll-interval 0.25` | How often to poll media / refresh lyrics (default 0.25s) |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |

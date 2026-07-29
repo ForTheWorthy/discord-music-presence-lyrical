@@ -137,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         poll_interval_seconds=float(
             args.poll_interval
             if args.poll_interval is not None
-            else config.get("poll_interval_seconds", 0.75)
+            else config.get("poll_interval_seconds", 0.25)
         ),
         clear_on_pause=bool(args.clear_on_pause or config.get("clear_on_pause", False)),
         show_progress=not bool(args.no_progress or config.get("show_progress") is False),
@@ -149,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
             config.get("music_symbol_interval_seconds", 1.5)
         ),
         music_symbol_repeat=int(config.get("music_symbol_repeat", 3)),
+        lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.35)),
     )
 
     presence_kwargs = {

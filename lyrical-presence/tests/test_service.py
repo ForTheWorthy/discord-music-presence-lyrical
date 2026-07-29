@@ -149,10 +149,36 @@ def test_discord_presence_clips_long_strings():
     assert transport.updates[0]["name"] == transport.updates[0]["details"]
 
 
-def test_status_display_can_use_state_field():
+def test_service_applies_lyric_lead_to_switch_lines_early():
+    lines = (
+        LyricLine(5.0, "early"),
+        LyricLine(10.0, "late"),
+    )
+    lyrics = Lyrics(
+        track_name="Song",
+        artist_name="Artist",
+        album_name="Album",
+        duration=100,
+        instrumental=False,
+        synced_lines=lines,
+    )
+
+    def provider():
+        return Track(
+            title="Song",
+            artist="Artist",
+            duration_seconds=100,
+            position_seconds=4.8,
+            playing=True,
+        )
+
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport, status_display="state")
-    presence.connect()
-    track = Track("Title", "Artist", playing=True)
-    presence.update_lyrics(track, "a lyric", show_progress=False)
-    assert transport.updates[0]["status_display_type"].name == "STATE"
+    presence = DiscordPresence("123", transport=transport)
+    service = LyricPresenceService(
+        media=StaticTrackBackend(provider),
+        lyrics_client=FakeLyricsClient(lyrics),
+        presence=presence,
+        config=SyncConfig(show_progress=False, lyric_lead_seconds=0.3),
+    )
+    service.tick()
+    assert transport.updates[0]["details"] == "early"

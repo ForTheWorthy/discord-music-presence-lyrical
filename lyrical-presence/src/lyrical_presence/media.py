@@ -96,6 +96,10 @@ class PlayerctlBackend(MediaBackend):
 class WindowsSmtcBackend(MediaBackend):
     """Windows media backend via GlobalSystemMediaTransportControlsSessionManager."""
 
+    def __init__(self) -> None:
+        self._loop = None
+        self._manager = None
+
     def current_track(self) -> Track | None:
         try:
             import asyncio
@@ -110,9 +114,13 @@ class WindowsSmtcBackend(MediaBackend):
             )
             return None
 
+        if self._loop is None:
+            self._loop = asyncio.new_event_loop()
+
         async def _read() -> Track | None:
-            manager = await MediaManager.request_async()
-            session = manager.get_current_session()
+            if self._manager is None:
+                self._manager = await MediaManager.request_async()
+            session = self._manager.get_current_session()
             if session is None:
                 return None
             info = await session.try_get_media_properties_async()
@@ -153,9 +161,11 @@ class WindowsSmtcBackend(MediaBackend):
             )
 
         try:
-            return asyncio.run(_read())
+            return self._loop.run_until_complete(_read())
         except Exception as exc:  # noqa: BLE001 - OS bridge can raise many types
             log.warning("Windows SMTC read failed: %s", exc)
+            # Drop cached manager so the next tick can recover.
+            self._manager = None
             return None
 
 
