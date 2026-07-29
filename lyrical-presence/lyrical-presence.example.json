@@ -6,5 +6,7 @@
   "show_music_symbols": true,
   "music_symbols": ["♪", "♫", "♬", "♩"],
   "music_symbol_interval_seconds": 1.5,
-  "music_symbol_repeat": 3
+  "music_symbol_repeat": 3,
+  "status_display": "details",
+  "show_player_in_state": false
 }

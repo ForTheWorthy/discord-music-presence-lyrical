@@ -70,8 +70,11 @@ def test_service_updates_presence_when_lyric_line_changes():
 
     assert len(transport.updates) == 2
     assert transport.updates[0]["details"] == "line one"
+    assert transport.updates[0]["name"] == "line one"
     assert transport.updates[1]["details"] == "line two"
     assert "Artist — Song" in transport.updates[0]["state"]
+    assert "Spotify" not in transport.updates[0]["state"]
+    assert transport.updates[0]["status_display_type"].name == "DETAILS"
 
 
 def test_service_falls_back_to_music_symbols_when_no_lyrics():
@@ -143,3 +146,13 @@ def test_discord_presence_clips_long_strings():
     presence.update_lyrics(track, long_line, show_progress=False)
     assert len(transport.updates[0]["details"]) == 128
     assert transport.updates[0]["details"].endswith("…")
+    assert transport.updates[0]["name"] == transport.updates[0]["details"]
+
+
+def test_status_display_can_use_state_field():
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport, status_display="state")
+    presence.connect()
+    track = Track("Title", "Artist", playing=True)
+    presence.update_lyrics(track, "a lyric", show_progress=False)
+    assert transport.updates[0]["status_display_type"].name == "STATE"

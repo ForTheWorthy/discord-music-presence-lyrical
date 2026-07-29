@@ -10,9 +10,12 @@ Discord activity fields:
 
 | Field | Content |
 | --- | --- |
-| **Details** (first line) | Current lyric line, or cycling `♪ ♪ ♪` during instrumentals / missing lyrics |
-| **State** (second line) | `Artist — Song · Player` |
+| **Listening to** | Current lyric line (or `♪ ♪ ♪` during instrumentals) |
+| **Details** (first line) | Current lyric line / music symbols |
+| **State** (second line) | `Artist — Song` |
 | Activity type | Listening |
+
+Discord normally shows **Listening to &lt;your app name&gt;**. This companion sets Discord's status display to the **details** field and also sets the activity `name` to the lyric, so friends see **Listening to &lt;lyric line&gt;** instead.
 
 When synced lyrics are unavailable — or during intros / instrumental gaps — details show music symbols (`♪` `♫` `♬` `♩`) instead of an empty line.
 
@@ -63,6 +66,8 @@ Play a song in any media player your OS exposes (Spotify, browsers with MPRIS/SM
 | `--poll-interval 0.5` | Poll media position more often |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
+| `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |
+| `--show-player` | Append the media player name to the state line |
 | `--no-music-symbols` | Disable ♪/♫ placeholders for instrumentals |
 | `--dry-run` | Print lyric updates without connecting to Discord |
 | `--config path.json` | Custom config path |

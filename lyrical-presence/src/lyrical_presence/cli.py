@@ -85,6 +85,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show a Discord playback progress bar",
     )
     parser.add_argument(
+        "--show-player",
+        action="store_true",
+        help="Include the media player name in the activity state line",
+    )
+    parser.add_argument(
+        "--status-display",
+        choices=("details", "state", "name"),
+        default=None,
+        help="Which field Discord shows after 'Listening to' (default: details = lyrics)",
+    )
+    parser.add_argument(
         "--no-music-symbols",
         action="store_true",
         help="Disable ♪/♫ placeholders during instrumentals / missing lyrics",
@@ -140,10 +151,22 @@ def main(argv: list[str] | None = None) -> int:
         music_symbol_repeat=int(config.get("music_symbol_repeat", 3)),
     )
 
+    presence_kwargs = {
+        "status_display": str(
+            args.status_display or config.get("status_display", "details")
+        ).lower(),
+        "show_player_in_state": bool(
+            args.show_player or config.get("show_player_in_state", False)
+        ),
+    }
     presence = (
-        DiscordPresence(str(client_id or "dry-run"), transport=_ConsoleTransport())
+        DiscordPresence(
+            str(client_id or "dry-run"),
+            transport=_ConsoleTransport(),
+            **presence_kwargs,
+        )
         if args.dry_run
-        else DiscordPresence(str(client_id))
+        else DiscordPresence(str(client_id), **presence_kwargs)
     )
     service = LyricPresenceService(
         media=create_media_backend(),

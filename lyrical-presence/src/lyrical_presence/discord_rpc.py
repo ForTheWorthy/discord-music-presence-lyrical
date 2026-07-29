@@ -10,6 +10,8 @@ log = logging.getLogger(__name__)
 
 # Discord Rich Presence string limits.
 MAX_PRESENCE_CHARS = 128
+# Activity `name` (used in "Listening to …") is shorter on some Discord clients.
+MAX_NAME_CHARS = 128
 
 
 class PresenceTransport(Protocol):
@@ -23,11 +25,20 @@ class PresenceTransport(Protocol):
 class DiscordPresence:
     """Thin wrapper around pypresence with safe string truncation."""
 
-    def __init__(self, client_id: str, transport: PresenceTransport | None = None) -> None:
+    def __init__(
+        self,
+        client_id: str,
+        transport: PresenceTransport | None = None,
+        *,
+        status_display: str = "details",
+        show_player_in_state: bool = False,
+    ) -> None:
         self.client_id = client_id
         self._transport = transport
         self._connected = transport is not None
         self._last_payload: dict[str, Any] | None = None
+        self.status_display = status_display
+        self.show_player_in_state = show_player_in_state
 
     def connect(self) -> None:
         if self._transport is not None:
@@ -48,15 +59,28 @@ class DiscordPresence:
         *,
         show_progress: bool = True,
     ) -> None:
+        # Primary line friends see in the activity card.
         details = self._clip(lyric_text or track.title)
-        state = self._clip(self._state_for(track, has_lyric=bool(lyric_text)))
+        state = self._clip(
+            self._state_for(
+                track,
+                has_lyric=bool(lyric_text),
+                show_player=self.show_player_in_state,
+            )
+        )
         payload: dict[str, Any] = {
             "details": details,
             "state": state,
+            # Also set activity name so "Listening to …" can show the lyric
+            # on clients that use the name field.
+            "name": self._clip(details, max_chars=MAX_NAME_CHARS),
         }
         activity_type = self._listening_activity_type()
         if activity_type is not None:
             payload["activity_type"] = activity_type
+        status_display_type = self._status_display_type()
+        if status_display_type is not None:
+            payload["status_display_type"] = status_display_type
         if show_progress and track.duration_seconds and track.duration_seconds > 0:
             # Reconstruct timestamps from current position so Discord's bar stays accurate.
             now = time.time()
@@ -111,9 +135,28 @@ class DiscordPresence:
         try:
             self._transport.update(**payload)
             self._last_payload = payload
-            log.debug("Presence updated: details=%r state=%r", payload.get("details"), payload.get("state"))
+            log.debug(
+                "Presence updated: name=%r details=%r state=%r",
+                payload.get("name"),
+                payload.get("details"),
+                payload.get("state"),
+            )
         except Exception as exc:  # noqa: BLE001
             log.warning("Discord presence update failed: %s", exc)
+
+    def _status_display_type(self) -> Any | None:
+        """Control which field appears after 'Listening to'."""
+        try:
+            from pypresence import StatusDisplayType
+        except Exception:  # noqa: BLE001
+            return {"details": 2, "state": 1, "name": 0}.get(self.status_display, 2)
+
+        mapping = {
+            "name": StatusDisplayType.NAME,
+            "state": StatusDisplayType.STATE,
+            "details": StatusDisplayType.DETAILS,
+        }
+        return mapping.get(self.status_display, StatusDisplayType.DETAILS)
 
     @staticmethod
     def _listening_activity_type() -> Any | None:
@@ -125,18 +168,18 @@ class DiscordPresence:
             return 2
 
     @staticmethod
-    def _state_for(track: Track, *, has_lyric: bool) -> str:
+    def _state_for(track: Track, *, has_lyric: bool, show_player: bool) -> str:
         if has_lyric:
             base = f"{track.artist} — {track.title}"
         else:
             base = track.artist
-        if track.player:
+        if show_player and track.player:
             return f"{base} · {track.player}"
         return base
 
     @staticmethod
-    def _clip(text: str) -> str:
+    def _clip(text: str, max_chars: int = MAX_PRESENCE_CHARS) -> str:
         text = " ".join(text.split())
-        if len(text) <= MAX_PRESENCE_CHARS:
+        if len(text) <= max_chars:
             return text
-        return text[: MAX_PRESENCE_CHARS - 1].rstrip() + "…"
+        return text[: max_chars - 1].rstrip() + "…"
