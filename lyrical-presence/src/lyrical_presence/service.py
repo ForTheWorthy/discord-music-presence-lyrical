@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from lyrical_presence.discord_rpc import DiscordPresence
 from lyrical_presence.lrc import line_at
@@ -10,6 +10,7 @@ from lyrical_presence.lrclib import LrclibClient
 from lyrical_presence.media import MediaBackend
 from lyrical_presence.models import Lyrics, Track
 from lyrical_presence.normalize import normalize_track
+from lyrical_presence.symbols import DEFAULT_MUSIC_SYMBOLS, format_music_only
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +21,10 @@ class SyncConfig:
     clear_on_pause: bool = False
     show_progress: bool = True
     paused_lyric_prefix: str = "⏸ "
+    show_music_symbols: bool = True
+    music_symbols: tuple[str, ...] = field(default_factory=lambda: DEFAULT_MUSIC_SYMBOLS)
+    music_symbol_interval_seconds: float = 1.5
+    music_symbol_repeat: int = 3
 
 
 class LyricPresenceService:
@@ -80,11 +85,7 @@ class LyricPresenceService:
             log.info("Now playing: %s — %s", track.artist, track.title)
 
         lyrics = self._lyrics_for(track)
-        lyric_text = self._active_lyric_text(track, lyrics)
-        if lyric_text is None:
-            self.presence.update_fallback(track, show_progress=self.config.show_progress)
-            self._last_lyric_text = None
-            return
+        lyric_text = self._presence_text(track, lyrics)
 
         if not track.playing:
             lyric_text = f"{self.config.paused_lyric_prefix}{lyric_text}"
@@ -115,6 +116,22 @@ class LyricPresenceService:
             log.info("Only plain lyrics available; timed line sync disabled")
         return lyrics
 
+    def _presence_text(self, track: Track, lyrics: Lyrics | None) -> str:
+        lyric = self._active_lyric_text(track, lyrics)
+        if lyric:
+            return lyric
+        if self.config.show_music_symbols:
+            return self._music_only_text(track)
+        return track.title
+
+    def _music_only_text(self, track: Track) -> str:
+        return format_music_only(
+            track.position_seconds,
+            self.config.music_symbols,
+            self.config.music_symbol_interval_seconds,
+            repeat=self.config.music_symbol_repeat,
+        )
+
     @staticmethod
     def _active_lyric_text(track: Track, lyrics: Lyrics | None) -> str | None:
         if lyrics is None or lyrics.instrumental or not lyrics.has_synced:
@@ -122,4 +139,8 @@ class LyricPresenceService:
         line = line_at(lyrics.synced_lines, track.position_seconds)
         if line is None:
             return None
-        return line.text
+        text = line.text.strip()
+        if not text:
+            # Empty timed LRC line = instrumental / music-only gap.
+            return None
+        return text

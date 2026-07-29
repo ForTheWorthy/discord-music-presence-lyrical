@@ -16,7 +16,7 @@ def test_parse_lrc_basic():
     )
 
 
-def test_parse_lrc_skips_empty_and_metadata():
+def test_parse_lrc_keeps_empty_timed_lines_for_instrumentals():
     raw = """
     [ar:Artist]
     [00:01.00]
@@ -24,7 +24,10 @@ def test_parse_lrc_skips_empty_and_metadata():
     not a lyric
     """
     lines = parse_lrc(raw)
-    assert lines == (LyricLine(2.0, "Hello"),)
+    assert lines == (
+        LyricLine(1.0, ""),
+        LyricLine(2.0, "Hello"),
+    )
 
 
 def test_line_at_selects_current_and_holds():

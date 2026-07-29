@@ -10,6 +10,7 @@ from lyrical_presence.discord_rpc import DiscordPresence
 from lyrical_presence.lrclib import LrclibClient
 from lyrical_presence.media import create_media_backend
 from lyrical_presence.service import LyricPresenceService, SyncConfig
+from lyrical_presence.symbols import DEFAULT_MUSIC_SYMBOLS
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +85,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show a Discord playback progress bar",
     )
     parser.add_argument(
+        "--no-music-symbols",
+        action="store_true",
+        help="Disable ♪/♫ placeholders during instrumentals / missing lyrics",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print lyric updates to the console without connecting to Discord",
@@ -113,6 +119,9 @@ def main(argv: list[str] | None = None) -> int:
             "or add client_id to lyrical-presence.json (or use --dry-run)"
         )
 
+    symbols = config.get("music_symbols", list(DEFAULT_MUSIC_SYMBOLS))
+    if isinstance(symbols, str):
+        symbols = [part for part in symbols.split() if part]
     sync = SyncConfig(
         poll_interval_seconds=float(
             args.poll_interval
@@ -121,6 +130,14 @@ def main(argv: list[str] | None = None) -> int:
         ),
         clear_on_pause=bool(args.clear_on_pause or config.get("clear_on_pause", False)),
         show_progress=not bool(args.no_progress or config.get("show_progress") is False),
+        show_music_symbols=not bool(
+            args.no_music_symbols or config.get("show_music_symbols") is False
+        ),
+        music_symbols=tuple(symbols) or DEFAULT_MUSIC_SYMBOLS,
+        music_symbol_interval_seconds=float(
+            config.get("music_symbol_interval_seconds", 1.5)
+        ),
+        music_symbol_repeat=int(config.get("music_symbol_repeat", 3)),
     )
 
     presence = (

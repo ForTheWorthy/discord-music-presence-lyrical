@@ -34,8 +34,7 @@ def parse_lrc(synced_lyrics: str | None) -> tuple[LyricLine, ...]:
         else:
             fraction_seconds = int(fraction) / 1000
         text = match.group(4).strip()
-        if not text:
-            continue
+        # Keep empty timed lines — they mark instrumental / music-only gaps.
         time_seconds = minutes * 60 + seconds + fraction_seconds
         lines.append(LyricLine(time_seconds=time_seconds, text=text))
 

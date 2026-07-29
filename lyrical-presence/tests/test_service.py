@@ -74,7 +74,7 @@ def test_service_updates_presence_when_lyric_line_changes():
     assert "Artist — Song" in transport.updates[0]["state"]
 
 
-def test_service_falls_back_when_no_lyrics():
+def test_service_falls_back_to_music_symbols_when_no_lyrics():
     def provider():
         return Track("Song", "Artist", duration_seconds=90, position_seconds=10, playing=True)
 
@@ -87,8 +87,51 @@ def test_service_falls_back_when_no_lyrics():
         config=SyncConfig(show_progress=False),
     )
     service.tick()
-    assert transport.updates[0]["details"] == "Song"
-    assert transport.updates[0]["state"].startswith("Artist")
+    assert transport.updates[0]["details"] == "♬ ♬ ♬"
+    assert "Artist — Song" in transport.updates[0]["state"]
+
+
+def test_service_shows_music_symbols_before_first_lyric_and_on_instrumental_gap():
+    lines = (
+        LyricLine(5.0, "verse"),
+        LyricLine(10.0, ""),
+        LyricLine(12.0, "chorus"),
+    )
+    lyrics = Lyrics(
+        track_name="Song",
+        artist_name="Artist",
+        album_name="Album",
+        duration=100,
+        instrumental=False,
+        synced_lines=lines,
+    )
+    positions = iter([1.0, 10.5, 12.5])
+
+    def provider():
+        return Track(
+            title="Song",
+            artist="Artist",
+            duration_seconds=100,
+            position_seconds=next(positions),
+            playing=True,
+        )
+
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport)
+    service = LyricPresenceService(
+        media=StaticTrackBackend(provider),
+        lyrics_client=FakeLyricsClient(lyrics),
+        presence=presence,
+        config=SyncConfig(show_progress=False, music_symbol_interval_seconds=100),
+    )
+    service.tick()
+    assert transport.updates[0]["details"] == "♪ ♪ ♪"
+
+    service.tick()  # instrumental gap; same symbol so Discord payload is unchanged
+    assert len(transport.updates) == 1
+
+    service.tick()
+    assert transport.updates[1]["details"] == "chorus"
 
 
 def test_discord_presence_clips_long_strings():

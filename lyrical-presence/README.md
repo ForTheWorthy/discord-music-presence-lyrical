@@ -10,11 +10,11 @@ Discord activity fields:
 
 | Field | Content |
 | --- | --- |
-| **Details** (first line) | Current lyric line |
+| **Details** (first line) | Current lyric line, or cycling `♪ ♪ ♪` during instrumentals / missing lyrics |
 | **State** (second line) | `Artist — Song · Player` |
 | Activity type | Listening |
 
-When synced lyrics are unavailable, it falls back to the song title / artist.
+When synced lyrics are unavailable — or during intros / instrumental gaps — details show music symbols (`♪` `♫` `♬` `♩`) instead of an empty line.
 
 ## Requirements
 
@@ -63,6 +63,7 @@ Play a song in any media player your OS exposes (Spotify, browsers with MPRIS/SM
 | `--poll-interval 0.5` | Poll media position more often |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
+| `--no-music-symbols` | Disable ♪/♫ placeholders for instrumentals |
 | `--dry-run` | Print lyric updates without connecting to Discord |
 | `--config path.json` | Custom config path |
 | `-v` | Debug logging |
