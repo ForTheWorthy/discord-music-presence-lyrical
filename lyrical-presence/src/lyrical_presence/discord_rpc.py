@@ -59,7 +59,7 @@ class DiscordPresence:
         show_progress: bool = True,
         large_image: str | None = None,
         large_text: str | None = None,
-    ) -> None:
+    ) -> bool:
         details = self._clip(lyric_text or track.title)
         state = self._clip(
             self._state_for(
@@ -88,7 +88,7 @@ class DiscordPresence:
             end = start + track.duration_seconds
             payload["start"] = int(start)
             payload["end"] = int(end)
-        self._apply(payload)
+        return self._apply(payload)
 
     def update_fallback(self, track: Track, *, show_progress: bool = True) -> None:
         self.update_lyrics(track, None, show_progress=show_progress)
@@ -115,7 +115,7 @@ class DiscordPresence:
         finally:
             self._connected = False
 
-    def _apply(self, payload: dict[str, Any]) -> None:
+    def _apply(self, payload: dict[str, Any]) -> bool:
         if not self._connected or self._transport is None:
             raise RuntimeError("Discord presence is not connected")
         comparable = {
@@ -131,7 +131,7 @@ class DiscordPresence:
                 if key not in {"start", "end"}
             }
         if comparable == last_comparable:
-            return
+            return True
         try:
             self._transport.update(**payload)
             self._last_payload = payload
@@ -141,8 +141,10 @@ class DiscordPresence:
                 payload.get("details"),
                 payload.get("state"),
             )
+            return True
         except Exception as exc:  # noqa: BLE001
             log.warning("Discord presence update failed: %s", exc)
+            return False
 
     def _status_display_type(self) -> Any | None:
         try:

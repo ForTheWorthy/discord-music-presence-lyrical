@@ -61,7 +61,11 @@ def test_service_updates_presence_when_lyric_line_changes():
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
         presence=presence,
-        config=SyncConfig(show_progress=False, show_album_cover=False),
+        config=SyncConfig(
+            show_progress=False,
+            show_album_cover=False,
+            discord_min_interval_seconds=0,
+        ),
     )
 
     service.tick()
@@ -113,6 +117,69 @@ def test_service_does_not_update_discord_until_lyric_changes():
     service.tick()
     assert len(transport.updates) == 1
     assert transport.updates[0]["details"] == "same line"
+
+
+def test_service_queues_short_lines_and_drains_at_discord_interval(monkeypatch):
+    lines = (
+        LyricLine(0.0, "one"),
+        LyricLine(0.4, "two"),
+        LyricLine(0.8, "three"),
+    )
+    lyrics = Lyrics(
+        track_name="Song",
+        artist_name="Artist",
+        album_name="Album",
+        duration=100,
+        instrumental=False,
+        synced_lines=lines,
+    )
+    positions = iter([0.1, 0.5, 0.9, 1.0, 1.0])
+    clock = {"now": 100.0}
+
+    def provider():
+        return Track(
+            title="Song",
+            artist="Artist",
+            duration_seconds=100,
+            position_seconds=next(positions),
+            playing=True,
+        )
+
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport)
+    service = LyricPresenceService(
+        media=StaticTrackBackend(provider),
+        lyrics_client=FakeLyricsClient(lyrics),
+        presence=presence,
+        config=SyncConfig(
+            show_progress=False,
+            show_album_cover=False,
+            lyric_lead_seconds=0,
+            discord_min_interval_seconds=1.0,
+            discord_max_queue=8,
+        ),
+    )
+    monkeypatch.setattr("lyrical_presence.service.time.monotonic", lambda: clock["now"])
+
+    service.tick()  # queues + sends "one"
+    assert [u["details"] for u in transport.updates] == ["one"]
+
+    clock["now"] = 100.2
+    service.tick()  # queues "two", still rate-limited
+    assert [u["details"] for u in transport.updates] == ["one"]
+    assert service._pending_lyrics == ["two"]
+
+    clock["now"] = 100.5
+    service.tick()  # queues "three", still waiting
+    assert service._pending_lyrics == ["two", "three"]
+
+    clock["now"] = 101.1
+    service.tick()  # drains "two"
+    assert [u["details"] for u in transport.updates] == ["one", "two"]
+
+    clock["now"] = 102.2
+    service.tick()  # drains "three"
+    assert [u["details"] for u in transport.updates] == ["one", "two", "three"]
 
 
 def test_service_falls_back_to_music_symbols_when_no_lyrics():
@@ -167,6 +234,7 @@ def test_service_shows_music_symbols_before_first_lyric_and_on_instrumental_gap(
             show_progress=False,
             music_symbol_interval_seconds=100,
             show_album_cover=False,
+            discord_min_interval_seconds=0,
         ),
     )
     service.tick()

@@ -20,24 +20,28 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class SyncConfig:
-    # Poll often so short lyric lines are not missed before the next one starts.
+    # Detect line changes often.
     poll_interval_seconds: float = 0.1
     clear_on_pause: bool = False
     show_progress: bool = True
     paused_lyric_prefix: str = "⏸ "
     show_music_symbols: bool = True
     music_symbols: tuple[str, ...] = field(default_factory=lambda: DEFAULT_MUSIC_SYMBOLS)
-    # Keep symbols static by default to avoid Discord rate limits from cycling.
     music_symbol_interval_seconds: float = 9999.0
     music_symbol_repeat: int = 3
-    # Switch lyric lines slightly early to offset Discord/OS update latency.
-    # Keep this modest so very short lines are not skipped.
-    lyric_lead_seconds: float = 0.2
+    # Modest lead: enough for Discord latency, low enough not to jump short lines.
+    lyric_lead_seconds: float = 0.25
     show_album_cover: bool = True
+    # Cap how fast we push to Discord (short-line songs enqueue; we drain safely).
+    # ~1.0s is aggressive enough to show most lines; raise toward 1.5 if Discord
+    # starts rejecting updates on your account.
+    discord_min_interval_seconds: float = 1.0
+    # If we fall behind, keep only the newest N queued lines.
+    discord_max_queue: int = 12
 
 
 class LyricPresenceService:
-    """Poll media playback, fetch lyrics, and push the active line to Discord."""
+    """Poll media playback, queue lyric lines, and push them to Discord at a safe rate."""
 
     def __init__(
         self,
@@ -62,14 +66,22 @@ class LyricPresenceService:
         self._lyrics_cache: dict[tuple[str, str, str], Lyrics | None] = {}
         self._cover_cache: dict[tuple[str, str, str], str | None] = {}
         self._current_identity: tuple[str, str, str] | None = None
-        self._last_lyric_text: str | None = None
+        self._last_detected_lyric: str | None = None
+        self._pending_lyrics: list[str] = []
+        self._last_sent_lyric: str | None = None
+        self._last_sent_at = 0.0
         self._running = False
         self._clock = PlaybackClock()
+        self._current_track: Track | None = None
 
     def run_forever(self) -> None:
         self.presence.connect()
         self._running = True
-        log.info("Lyrical Presence is running (poll every %.2fs)", self.config.poll_interval_seconds)
+        log.info(
+            "Lyrical Presence is running (poll every %.2fs, Discord min interval %.2fs)",
+            self.config.poll_interval_seconds,
+            self.config.discord_min_interval_seconds,
+        )
         try:
             while self._running:
                 started = time.monotonic()
@@ -91,21 +103,22 @@ class LyricPresenceService:
         if track is None or not track.is_valid():
             if self._current_identity is not None:
                 self.presence.clear()
+                self._reset_lyric_pipeline()
                 self._current_identity = None
-                self._last_lyric_text = None
             return
 
         track = self._clock.resolve(normalize_track(track))
+        self._current_track = track
 
         if not track.playing and self.config.clear_on_pause:
             self.presence.clear()
-            self._last_lyric_text = None
+            self._reset_lyric_pipeline()
             return
 
         identity = track.identity
         if identity != self._current_identity:
             self._current_identity = identity
-            self._last_lyric_text = None
+            self._reset_lyric_pipeline()
             log.info("Now playing: %s — %s", track.artist, track.title)
 
         lyrics = self._lyrics_for(track)
@@ -115,28 +128,67 @@ class LyricPresenceService:
         if not track.playing:
             lyric_text = f"{self.config.paused_lyric_prefix}{lyric_text}"
 
-        # Only talk to Discord when the displayed lyric line changes.
-        # This avoids rate limits from progress/timestamp churn and reduces
-        # dropped updates when lines are short.
-        if lyric_text == self._last_lyric_text:
+        self._enqueue_lyric(lyric_text)
+        self._flush_queue()
+
+    def _reset_lyric_pipeline(self) -> None:
+        self._last_detected_lyric = None
+        self._pending_lyrics.clear()
+        self._last_sent_lyric = None
+        self._last_sent_at = 0.0
+
+    def _enqueue_lyric(self, lyric_text: str) -> None:
+        if lyric_text == self._last_detected_lyric:
+            return
+        self._last_detected_lyric = lyric_text
+        if self._pending_lyrics and self._pending_lyrics[-1] == lyric_text:
+            return
+        self._pending_lyrics.append(lyric_text)
+        log.info("Queued lyric (%d waiting): %s", len(self._pending_lyrics), lyric_text)
+
+        max_queue = max(1, self.config.discord_max_queue)
+        if len(self._pending_lyrics) > max_queue:
+            dropped = len(self._pending_lyrics) - max_queue
+            self._pending_lyrics = self._pending_lyrics[-max_queue:]
+            log.debug("Dropped %d oldest queued lyrics to limit backlog", dropped)
+
+    def _flush_queue(self) -> None:
+        track = self._current_track
+        if track is None:
             return
 
-        log.info("Lyric: %s", lyric_text)
-        self._last_lyric_text = lyric_text
+        now = time.monotonic()
+        min_interval = max(0.0, self.config.discord_min_interval_seconds)
+        if self._last_sent_lyric is not None and (now - self._last_sent_at) < min_interval:
+            return
 
-        cover_url = None
-        if self.config.show_album_cover:
-            if identity not in self._cover_cache:
-                self._cover_cache[identity] = self.cover_client.cover_url_for(track)
-            cover_url = self._cover_cache[identity]
+        while self._pending_lyrics:
+            lyric_text = self._pending_lyrics.pop(0)
+            if lyric_text == self._last_sent_lyric:
+                continue
 
-        self.presence.update_lyrics(
-            track,
-            lyric_text,
-            show_progress=self.config.show_progress,
-            large_image=cover_url,
-            large_text=track.album or track.title,
-        )
+            cover_url = None
+            if self.config.show_album_cover:
+                identity = track.identity
+                if identity not in self._cover_cache:
+                    self._cover_cache[identity] = self.cover_client.cover_url_for(track)
+                cover_url = self._cover_cache[identity]
+
+            log.info("Lyric: %s", lyric_text)
+            ok = self.presence.update_lyrics(
+                track,
+                lyric_text,
+                show_progress=self.config.show_progress,
+                large_image=cover_url,
+                large_text=track.album or track.title,
+            )
+            # Always advance the send clock so a hard Discord failure still backs off.
+            self._last_sent_at = now
+            if ok:
+                self._last_sent_lyric = lyric_text
+            else:
+                self._pending_lyrics.insert(0, lyric_text)
+            return
 
     def _with_lyric_lead(self, track: Track) -> Track:
         lead = max(self.config.lyric_lead_seconds, 0.0)
@@ -199,6 +251,5 @@ class LyricPresenceService:
             return None
         text = line.text.strip()
         if not text:
-            # Empty timed LRC line = instrumental / music-only gap.
             return None
         return text

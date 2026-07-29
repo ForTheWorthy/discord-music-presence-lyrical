@@ -1,7 +1,9 @@
 {
   "client_id": "YOUR_DISCORD_APPLICATION_CLIENT_ID",
   "poll_interval_seconds": 0.1,
-  "lyric_lead_seconds": 0.2,
+  "lyric_lead_seconds": 0.25,
+  "discord_min_interval_seconds": 1.0,
+  "discord_max_queue": 12,
   "clear_on_pause": false,
   "show_progress": true,
   "show_album_cover": true,

@@ -181,10 +181,14 @@ def main(argv: list[str] | None = None) -> int:
             config.get("music_symbol_interval_seconds", 9999.0)
         ),
         music_symbol_repeat=int(config.get("music_symbol_repeat", 3)),
-        lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.2)),
+        lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.25)),
         show_album_cover=not bool(
             args.no_album_cover or config.get("show_album_cover") is False
         ),
+        discord_min_interval_seconds=float(
+            config.get("discord_min_interval_seconds", 1.0)
+        ),
+        discord_max_queue=int(config.get("discord_max_queue", 12)),
     )
 
     presence_kwargs = {
