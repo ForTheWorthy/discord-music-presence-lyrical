@@ -57,6 +57,8 @@ If lyrics feel late, raise `lyric_lead_seconds` slightly (e.g. `0.35`). Keep it 
 
 Discord updates are **queued and drained** about every `discord_min_interval_seconds` (default `1.0`). Rapid short lines wait their turn instead of overwriting each other or tripping rate limits. If Discord starts rejecting updates, raise the interval toward `1.5`. To show more of a very fast verse before the backlog trims, raise `discord_max_queue` (default `12`).
 
+Profanity in lyric lines is **censored by default** (`fuck` → `f***`). Set `censor_profanity` to `false` (or pass `--no-censor-profanity`) to show the original words. Add custom terms with `extra_censored_words`.
+
 ## Run
 
 ```bash
@@ -90,6 +92,7 @@ If updates seem to pause until you click or type in the console window, that is 
 | `--no-album-cover` | Disable album cover lookup / display |
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |
 | `--show-player` | Append the media player name to the state line |
+| `--no-censor-profanity` | Show swear words in lyrics uncensored |
 | `--no-music-symbols` | Disable ♪/♫ placeholders for instrumentals |
 | `--dry-run` | Print lyric updates without connecting to Discord |
 | `--config path.json` | Custom config path |
