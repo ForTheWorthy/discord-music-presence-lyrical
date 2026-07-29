@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from lyrical_presence.censor import censor_text
 from lyrical_presence.clock import PlaybackClock
 from lyrical_presence.covers import CoverArtClient
 from lyrical_presence.discord_rpc import DiscordPresence
@@ -38,6 +39,10 @@ class SyncConfig:
     discord_min_interval_seconds: float = 1.0
     # If we fall behind, keep only the newest N queued lines.
     discord_max_queue: int = 12
+    # Mask swear words in lyric lines before sending to Discord (f*** style).
+    censor_profanity: bool = True
+    censor_mask: str = "*"
+    extra_censored_words: tuple[str, ...] = ()
 
 
 class LyricPresenceService:
@@ -230,10 +235,18 @@ class LyricPresenceService:
     def _presence_text(self, track: Track, lyrics: Lyrics | None) -> str:
         lyric = self._active_lyric_text(track, lyrics)
         if lyric:
-            return lyric
+            return self._censor_lyric(lyric)
         if self.config.show_music_symbols:
             return self._music_only_text(track)
         return track.title
+
+    def _censor_lyric(self, lyric: str) -> str:
+        return censor_text(
+            lyric,
+            enabled=self.config.censor_profanity,
+            extra_words=self.config.extra_censored_words,
+            mask=self.config.censor_mask or "*",
+        )
 
     def _music_only_text(self, track: Track) -> str:
         return format_music_only(
