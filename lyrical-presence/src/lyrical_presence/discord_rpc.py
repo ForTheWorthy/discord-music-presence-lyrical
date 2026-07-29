@@ -58,6 +58,8 @@ class DiscordPresence:
         lyric_text: str | None,
         *,
         show_progress: bool = True,
+        large_image: str | None = None,
+        large_text: str | None = None,
     ) -> None:
         # Primary line friends see in the activity card.
         details = self._clip(lyric_text or track.title)
@@ -75,6 +77,9 @@ class DiscordPresence:
             # on clients that use the name field.
             "name": self._clip(details, max_chars=MAX_NAME_CHARS),
         }
+        if large_image:
+            payload["large_image"] = large_image
+            payload["large_text"] = self._clip(large_text or track.album or track.title)
         activity_type = self._listening_activity_type()
         if activity_type is not None:
             payload["activity_type"] = activity_type

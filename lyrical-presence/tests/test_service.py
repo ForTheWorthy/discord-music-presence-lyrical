@@ -61,7 +61,7 @@ def test_service_updates_presence_when_lyric_line_changes():
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
         presence=presence,
-        config=SyncConfig(show_progress=False),
+        config=SyncConfig(show_progress=False, show_album_cover=False),
     )
 
     service.tick()
@@ -75,6 +75,7 @@ def test_service_updates_presence_when_lyric_line_changes():
     assert "Artist — Song" in transport.updates[0]["state"]
     assert "Spotify" not in transport.updates[0]["state"]
     assert transport.updates[0]["status_display_type"].name == "DETAILS"
+    assert "large_image" not in transport.updates[0]
 
 
 def test_service_falls_back_to_music_symbols_when_no_lyrics():
@@ -87,7 +88,7 @@ def test_service_falls_back_to_music_symbols_when_no_lyrics():
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(None),
         presence=presence,
-        config=SyncConfig(show_progress=False),
+        config=SyncConfig(show_progress=False, show_album_cover=False),
     )
     service.tick()
     assert transport.updates[0]["details"] == "♬ ♬ ♬"
@@ -125,7 +126,11 @@ def test_service_shows_music_symbols_before_first_lyric_and_on_instrumental_gap(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
         presence=presence,
-        config=SyncConfig(show_progress=False, music_symbol_interval_seconds=100),
+        config=SyncConfig(
+            show_progress=False,
+            music_symbol_interval_seconds=100,
+            show_album_cover=False,
+        ),
     )
     service.tick()
     assert transport.updates[0]["details"] == "♪ ♪ ♪"
@@ -178,10 +183,36 @@ def test_service_applies_lyric_lead_to_switch_lines_early():
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
         presence=presence,
-        config=SyncConfig(show_progress=False, lyric_lead_seconds=0.3),
+        config=SyncConfig(
+            show_progress=False,
+            lyric_lead_seconds=0.3,
+            show_album_cover=False,
+        ),
     )
     service.tick()
     assert transport.updates[0]["details"] == "early"
+
+
+def test_service_includes_album_cover_url():
+    class FakeCovers:
+        def cover_url_for(self, track):
+            return "https://example.com/cover.jpg"
+
+    def provider():
+        return Track("Song", "Artist", "Album", duration_seconds=90, position_seconds=1, playing=True)
+
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport)
+    service = LyricPresenceService(
+        media=StaticTrackBackend(provider),
+        lyrics_client=FakeLyricsClient(None),
+        presence=presence,
+        cover_client=FakeCovers(),
+        config=SyncConfig(show_progress=False, show_music_symbols=False),
+    )
+    service.tick()
+    assert transport.updates[0]["large_image"] == "https://example.com/cover.jpg"
+    assert transport.updates[0]["large_text"] == "Album"
 
 
 def test_status_display_can_use_state_field():

@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 
 from lyrical_presence.clock import PlaybackClock
+from lyrical_presence.covers import CoverArtClient
 from lyrical_presence.discord_rpc import DiscordPresence
 from lyrical_presence.lrc import line_at
 from lyrical_presence.lrclib import LrclibClient
@@ -28,6 +29,7 @@ class SyncConfig:
     music_symbol_repeat: int = 3
     # Switch lyric lines slightly early to offset Discord/OS update latency.
     lyric_lead_seconds: float = 0.35
+    show_album_cover: bool = True
 
 
 class LyricPresenceService:
@@ -39,11 +41,13 @@ class LyricPresenceService:
         lyrics_client: LrclibClient,
         presence: DiscordPresence,
         config: SyncConfig | None = None,
+        cover_client: CoverArtClient | None = None,
     ) -> None:
         self.media = media
         self.lyrics_client = lyrics_client
         self.presence = presence
         self.config = config or SyncConfig()
+        self.cover_client = cover_client or CoverArtClient()
         self._lyrics_cache: dict[tuple[str, str, str], Lyrics | None] = {}
         self._current_identity: tuple[str, str, str] | None = None
         self._last_lyric_text: str | None = None
@@ -102,10 +106,17 @@ class LyricPresenceService:
         if lyric_text != self._last_lyric_text:
             log.info("Lyric: %s", lyric_text)
             self._last_lyric_text = lyric_text
+
+        cover_url = None
+        if self.config.show_album_cover:
+            cover_url = self.cover_client.cover_url_for(track)
+
         self.presence.update_lyrics(
             track,
             lyric_text,
             show_progress=self.config.show_progress,
+            large_image=cover_url,
+            large_text=track.album or track.title,
         )
 
     def _with_lyric_lead(self, track: Track) -> Track:

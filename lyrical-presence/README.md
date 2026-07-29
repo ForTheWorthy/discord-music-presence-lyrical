@@ -13,9 +13,10 @@ Discord activity fields:
 | **Listening to** | Current lyric line (or `♪ ♪ ♪` during instrumentals) |
 | **Details** (first line) | Current lyric line / music symbols |
 | **State** (second line) | `Artist — Song` |
+| **Large image** | Album cover (looked up via iTunes Search) |
 | Activity type | Listening |
 
-Discord normally shows **Listening to &lt;your app name&gt;**. This companion sets Discord's status display to the **details** field and also sets the activity `name` to the lyric, so friends see **Listening to &lt;lyric line&gt;** instead.
+Discord normally shows **Listening to &lt;your app name&gt;**. This companion sets Discord's status display to the **details** field and also sets the activity `name` to the lyric, so friends see **Listening to &lt;lyric line&gt;** instead. Album artwork is fetched from the public iTunes Search API and passed to Discord as an external image URL (replacing the default app/question-mark icon).
 
 When synced lyrics are unavailable — or during intros / instrumental gaps — details show music symbols (`♪` `♫` `♬` `♩`) instead of an empty line.
 
@@ -68,6 +69,7 @@ Play a song in any media player your OS exposes (Spotify, browsers with MPRIS/SM
 | `--poll-interval 0.25` | How often to poll media / refresh lyrics (default 0.25s) |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
+| `--no-album-cover` | Disable album cover lookup / display |
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |
 | `--show-player` | Append the media player name to the state line |
 | `--no-music-symbols` | Disable ♪/♫ placeholders for instrumentals |

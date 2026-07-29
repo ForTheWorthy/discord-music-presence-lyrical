@@ -85,6 +85,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show a Discord playback progress bar",
     )
     parser.add_argument(
+        "--no-album-cover",
+        action="store_true",
+        help="Do not look up or show album cover art in Discord",
+    )
+    parser.add_argument(
         "--show-player",
         action="store_true",
         help="Include the media player name in the activity state line",
@@ -150,6 +155,9 @@ def main(argv: list[str] | None = None) -> int:
         ),
         music_symbol_repeat=int(config.get("music_symbol_repeat", 3)),
         lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.35)),
+        show_album_cover=not bool(
+            args.no_album_cover or config.get("show_album_cover") is False
+        ),
     )
 
     presence_kwargs = {
