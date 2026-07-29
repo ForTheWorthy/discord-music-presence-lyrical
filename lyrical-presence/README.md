@@ -62,6 +62,10 @@ lyrical-presence --client-id YOUR_APPLICATION_ID -v
 
 Play a song in any media player your OS exposes (Spotify, browsers with MPRIS/SMTC, VLC, etc.). When timed lyrics are found, Discord updates on each new line.
 
+### Windows tip
+
+If updates seem to pause until you click or type in the console window, that is Windows **Quick Edit Mode**. Lyrical Presence disables it on startup. You can also turn it off permanently: open the console menu (title-bar icon) → Properties → Options → uncheck **Quick Edit Mode**.
+
 ### Useful flags
 
 | Flag | Meaning |

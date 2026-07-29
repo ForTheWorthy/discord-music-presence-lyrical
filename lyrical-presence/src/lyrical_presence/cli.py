@@ -6,6 +6,7 @@ import logging
 import os
 from pathlib import Path
 
+from lyrical_presence.consoleutil import configure_windows_console
 from lyrical_presence.discord_rpc import DiscordPresence
 from lyrical_presence.lrclib import LrclibClient
 from lyrical_presence.media import create_media_backend
@@ -120,12 +121,28 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_windows_console()
     parser = build_parser()
     args = parser.parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
     )
+    # Ensure log lines flush immediately on Windows consoles.
+    for handler in logging.getLogger().handlers:
+        handler.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+        flush = getattr(handler, "flush", None)
+        stream = getattr(handler, "stream", None)
+        if stream is not None:
+            try:
+                reconfigure = getattr(stream, "reconfigure", None)
+                if callable(reconfigure):
+                    reconfigure(line_buffering=True, write_through=True)
+            except Exception:  # noqa: BLE001
+                pass
+        if callable(flush):
+            flush()
 
     config = load_config(args.config)
     client_id = args.client_id or config.get("client_id")
