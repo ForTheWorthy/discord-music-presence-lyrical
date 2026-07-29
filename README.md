@@ -100,6 +100,22 @@ or join our Discord: [**discord.gg/musicpresence**](https://discord.gg/musicpres
 Looking for scrobbling, browser support and listening along?  
 Check out [**musicpresence.app**](https://musicpresence.app?utm_source=github.com&utm_medium=project-readme), specifically the "Timeline" section. I have big plans for the future!
 
+## Lyrical Presence (this fork)
+
+This fork adds a companion app that shows **synced lyrics line-by-line in Discord Rich Presence**.
+
+Music Presence's C++/Qt source is not published here (docs and release assets only), so lyrics support ships as an open companion under [`lyrical-presence/`](./lyrical-presence/). It reads the OS media session, fetches timed lyrics from [LRCLIB](https://lrclib.net), and updates Discord as each line plays.
+
+- Quick start: [lyrical-presence/README.md](./lyrical-presence/README.md)
+- Overview: [documentation/lyrical-presence.md](./documentation/lyrical-presence.md)
+
+```bash
+cd lyrical-presence
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+lyrical-presence --client-id YOUR_DISCORD_APP_ID
+```
+
 ## Further links
 
 - [Supported media players](./documentation/supported-media-players.md)

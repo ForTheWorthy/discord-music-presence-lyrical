@@ -13,6 +13,13 @@
   [Discord server](https://discord-invite.musicpresence.app)
   by checking the pinned messages in the #linux channel.
 
+## This fork
+
+- **Synced lyrics in Discord Rich Presence** — companion app in
+  [`lyrical-presence/`](../lyrical-presence/) that updates your status
+  per lyric line/sentence while a song plays.
+  See [lyrical-presence.md](./lyrical-presence.md).
+
 ## Planned features
 
 - **Listening along** with other Music Presence users and your friends

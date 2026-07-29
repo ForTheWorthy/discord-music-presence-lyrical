@@ -2,6 +2,9 @@
 
 At the moment you can contribute in the following ways:
 
+- **Lyrical Presence companion** &ndash; The synced-lyrics Discord Rich Presence
+tool under [`lyrical-presence/`](../lyrical-presence/) is open source in this
+fork. Bug fixes, media backends, and lyric-matching improvements are welcome.
 - **Help translating the app** &ndash; If Music Presence is not available
 in your language yet, you are welcome to help with translations!
 Find more information [**here**](./translations.md)
