@@ -182,3 +182,12 @@ def test_service_applies_lyric_lead_to_switch_lines_early():
     )
     service.tick()
     assert transport.updates[0]["details"] == "early"
+
+
+def test_status_display_can_use_state_field():
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport, status_display="state")
+    presence.connect()
+    track = Track("Title", "Artist", playing=True)
+    presence.update_lyrics(track, "a lyric", show_progress=False)
+    assert transport.updates[0]["status_display_type"].name == "STATE"
