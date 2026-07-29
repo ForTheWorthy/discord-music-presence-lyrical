@@ -10,8 +10,9 @@ Discord activity fields:
 
 | Field | Content |
 | --- | --- |
-| **Listening to** | Current lyric chunk (long lines are split and cycled) |
-| **Details** (first line) | Current lyric chunk / music symbols |
+| **Listening to** | First part of the current lyric (fits under the username) |
+| **Details** (first line) | First part of the lyric / music symbols |
+| **State** (second line) | Rest of a long lyric, otherwise `Artist — Song` |
 | **State** (second line) | `Artist — Song` |
 | **Large image** | Album cover (looked up via iTunes Search) |
 | Activity type | Listening |
@@ -73,8 +74,7 @@ If updates seem to pause until you click or type in the console window, that is 
 | `--poll-interval 0.25` | How often to poll media / refresh lyrics (default 0.25s) |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
-| `--max-lyric-chars 40` | Max characters per lyric chunk under the username |
-| `--no-split-lyrics` | Keep long lines whole (Discord may truncate them) |
+| `--max-lyric-chars 40` | Max characters on the first lyric / under-username line |
 | `--lyrics-dir path` | Folder of local `.lrc` overrides |
 | `--no-album-cover` | Disable album cover lookup / display |
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |

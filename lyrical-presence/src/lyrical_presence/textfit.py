@@ -29,22 +29,33 @@ def split_lyric_chunks(text: str, max_chars: int) -> tuple[str, ...]:
     return tuple(chunks)
 
 
-def chunk_at_progress(
-    chunks: tuple[str, ...],
+def split_lyric_for_presence(
+    text: str,
     *,
-    elapsed_seconds: float,
-    window_seconds: float,
-) -> str:
-    """Pick which chunk to show based on progress through the lyric window."""
+    first_line_chars: int,
+    max_chars: int = 128,
+) -> tuple[str, str | None]:
+    """Split a long lyric across Discord details/state without timed cycling.
+
+    Returns (details, state_override).
+    state_override is None when the lyric fits on one line (caller keeps Artist — Title).
+    """
+    text = " ".join(text.split())
+    if not text:
+        return "", None
+    if len(text) <= first_line_chars:
+        return text, None
+
+    chunks = split_lyric_chunks(text, first_line_chars)
     if not chunks:
-        return ""
+        return "", None
     if len(chunks) == 1:
-        return chunks[0]
-    window = max(window_seconds, 0.5)
-    elapsed = max(elapsed_seconds, 0.0)
-    # Divide the available window evenly across chunks.
-    slot = window / len(chunks)
-    index = int(elapsed / slot)
-    if index >= len(chunks):
-        index = len(chunks) - 1
-    return chunks[index]
+        return chunks[0][:max_chars], None
+
+    details = chunks[0][:max_chars]
+    remainder = " ".join(chunks[1:]).strip()
+    if not remainder:
+        return details, None
+    if len(remainder) <= max_chars:
+        return details, remainder
+    return details, remainder[: max_chars - 1].rstrip() + "…"

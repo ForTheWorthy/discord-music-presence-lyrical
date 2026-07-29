@@ -14,7 +14,6 @@ from lyrical_presence.models import Lyrics, Track
 from lyrical_presence.normalize import normalize_track
 from lyrical_presence.providers import LyricsFetcher, build_default_fetcher
 from lyrical_presence.symbols import DEFAULT_MUSIC_SYMBOLS, format_music_only
-from lyrical_presence.textfit import chunk_at_progress, split_lyric_chunks
 
 log = logging.getLogger(__name__)
 
@@ -27,14 +26,14 @@ class SyncConfig:
     paused_lyric_prefix: str = "⏸ "
     show_music_symbols: bool = True
     music_symbols: tuple[str, ...] = field(default_factory=lambda: DEFAULT_MUSIC_SYMBOLS)
-    music_symbol_interval_seconds: float = 1.5
+    # Keep symbols static by default to avoid Discord rate limits from cycling.
+    music_symbol_interval_seconds: float = 9999.0
     music_symbol_repeat: int = 3
     # Switch lyric lines slightly early to offset Discord/OS update latency.
     lyric_lead_seconds: float = 0.35
     show_album_cover: bool = True
-    # Discord's under-username activity text truncates well below the 128 API limit.
+    # First activity line / under-username text target length.
     max_lyric_chars: int = 40
-    split_long_lyrics: bool = True
 
 
 class LyricPresenceService:
@@ -194,15 +193,4 @@ class LyricPresenceService:
         if not text:
             # Empty timed LRC line = instrumental / music-only gap.
             return None
-        if not self.config.split_long_lyrics:
-            return text
-        chunks = split_lyric_chunks(text, self.config.max_lyric_chars)
-        if not chunks:
-            return None
-        if len(chunks) == 1:
-            return chunks[0]
-        return chunk_at_progress(
-            chunks,
-            elapsed_seconds=track.position_seconds - start,
-            window_seconds=max(end - start, 0.5),
-        )
+        return text

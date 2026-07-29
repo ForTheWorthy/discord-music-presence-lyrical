@@ -56,7 +56,7 @@ def test_service_updates_presence_when_lyric_line_changes():
         )
 
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence("123", transport=transport, min_update_interval_seconds=0)
     service = LyricPresenceService(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
@@ -83,7 +83,7 @@ def test_service_falls_back_to_music_symbols_when_no_lyrics():
         return Track("Song", "Artist", duration_seconds=90, position_seconds=10, playing=True)
 
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence("123", transport=transport, min_update_interval_seconds=0)
     service = LyricPresenceService(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(None),
@@ -91,7 +91,7 @@ def test_service_falls_back_to_music_symbols_when_no_lyrics():
         config=SyncConfig(show_progress=False, show_album_cover=False),
     )
     service.tick()
-    assert transport.updates[0]["details"] == "♬ ♬ ♬"
+    assert transport.updates[0]["details"] == "♪ ♪ ♪"
     assert "Artist — Song" in transport.updates[0]["state"]
 
 
@@ -121,7 +121,7 @@ def test_service_shows_music_symbols_before_first_lyric_and_on_instrumental_gap(
         )
 
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence("123", transport=transport, min_update_interval_seconds=0)
     service = LyricPresenceService(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
@@ -144,14 +144,20 @@ def test_service_shows_music_symbols_before_first_lyric_and_on_instrumental_gap(
 
 def test_discord_presence_clips_long_strings():
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence(
+        "123",
+        transport=transport,
+        min_update_interval_seconds=0,
+        max_lyric_chars=40,
+    )
     presence.connect()
     long_line = "x" * 200
     track = Track("Title", "Artist", duration_seconds=10, position_seconds=1, playing=True)
     presence.update_lyrics(track, long_line, show_progress=False)
-    assert len(transport.updates[0]["details"]) == 128
-    assert transport.updates[0]["details"].endswith("…")
+    assert len(transport.updates[0]["details"]) == 40
     assert transport.updates[0]["name"] == transport.updates[0]["details"]
+    assert transport.updates[0]["state"].endswith("…")
+    assert len(transport.updates[0]["state"]) == 128
 
 
 def test_service_applies_lyric_lead_to_switch_lines_early():
@@ -178,7 +184,7 @@ def test_service_applies_lyric_lead_to_switch_lines_early():
         )
 
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence("123", transport=transport, min_update_interval_seconds=0)
     service = LyricPresenceService(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
@@ -202,7 +208,7 @@ def test_service_includes_album_cover_url():
         return Track("Song", "Artist", "Album", duration_seconds=90, position_seconds=1, playing=True)
 
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence("123", transport=transport, min_update_interval_seconds=0)
     service = LyricPresenceService(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(None),
@@ -215,12 +221,9 @@ def test_service_includes_album_cover_url():
     assert transport.updates[0]["large_text"] == "Album"
 
 
-def test_service_splits_long_lyrics_across_line_window():
+def test_service_puts_long_lyric_overflow_on_state_line():
     long_line = "Like we always do at this time I look so lonely nevertheless"
-    lines = (
-        LyricLine(0.0, long_line),
-        LyricLine(6.0, "next"),
-    )
+    lines = (LyricLine(0.0, long_line),)
     lyrics = Lyrics(
         track_name="Song",
         artist_name="Artist",
@@ -229,19 +232,23 @@ def test_service_splits_long_lyrics_across_line_window():
         instrumental=False,
         synced_lines=lines,
     )
-    positions = iter([0.2, 3.2, 6.2])
 
     def provider():
         return Track(
             title="Song",
             artist="Artist",
             duration_seconds=100,
-            position_seconds=next(positions),
+            position_seconds=1.0,
             playing=True,
         )
 
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport)
+    presence = DiscordPresence(
+        "123",
+        transport=transport,
+        max_lyric_chars=24,
+        min_update_interval_seconds=0,
+    )
     service = LyricPresenceService(
         media=StaticTrackBackend(provider),
         lyrics_client=FakeLyricsClient(lyrics),
@@ -254,23 +261,15 @@ def test_service_splits_long_lyrics_across_line_window():
         ),
     )
     service.tick()
-    service.tick()
-    service.tick()
-
     assert len(transport.updates[0]["details"]) <= 24
-    assert transport.updates[0]["details"] != transport.updates[1]["details"]
-    assert transport.updates[2]["details"] == "next"
-    assert " ".join(
-        [
-            transport.updates[0]["details"],
-            transport.updates[1]["details"],
-        ]
-    ) in long_line or long_line.startswith(transport.updates[0]["details"])
+    assert "Artist — Song" not in transport.updates[0]["state"]
+    assert transport.updates[0]["details"] in long_line
+    assert transport.updates[0]["state"] in long_line
 
 
 def test_status_display_can_use_state_field():
     transport = FakeTransport()
-    presence = DiscordPresence("123", transport=transport, status_display="state")
+    presence = DiscordPresence("123", transport=transport, status_display="state", min_update_interval_seconds=0)
     presence.connect()
     track = Track("Title", "Artist", playing=True)
     presence.update_lyrics(track, "a lyric", show_progress=False)
