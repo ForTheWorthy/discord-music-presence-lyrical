@@ -8,12 +8,13 @@ from typing import Any
 from lyrical_presence.clock import PlaybackClock
 from lyrical_presence.covers import CoverArtClient
 from lyrical_presence.discord_rpc import DiscordPresence
-from lyrical_presence.lrc import line_at
+from lyrical_presence.lrc import line_window
 from lyrical_presence.media import MediaBackend
 from lyrical_presence.models import Lyrics, Track
 from lyrical_presence.normalize import normalize_track
 from lyrical_presence.providers import LyricsFetcher, build_default_fetcher
 from lyrical_presence.symbols import DEFAULT_MUSIC_SYMBOLS, format_music_only
+from lyrical_presence.textfit import chunk_at_progress, split_lyric_chunks
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ class SyncConfig:
     # Switch lyric lines slightly early to offset Discord/OS update latency.
     lyric_lead_seconds: float = 0.35
     show_album_cover: bool = True
+    # Discord's under-username activity text truncates well below the 128 API limit.
+    max_lyric_chars: int = 40
+    split_long_lyrics: bool = True
 
 
 class LyricPresenceService:
@@ -180,15 +184,25 @@ class LyricPresenceService:
             repeat=self.config.music_symbol_repeat,
         )
 
-    @staticmethod
-    def _active_lyric_text(track: Track, lyrics: Lyrics | None) -> str | None:
+    def _active_lyric_text(self, track: Track, lyrics: Lyrics | None) -> str | None:
         if lyrics is None or lyrics.instrumental or not lyrics.has_synced:
             return None
-        line = line_at(lyrics.synced_lines, track.position_seconds)
-        if line is None:
+        line, start, end = line_window(lyrics.synced_lines, track.position_seconds)
+        if line is None or start is None or end is None:
             return None
         text = line.text.strip()
         if not text:
             # Empty timed LRC line = instrumental / music-only gap.
             return None
-        return text
+        if not self.config.split_long_lyrics:
+            return text
+        chunks = split_lyric_chunks(text, self.config.max_lyric_chars)
+        if not chunks:
+            return None
+        if len(chunks) == 1:
+            return chunks[0]
+        return chunk_at_progress(
+            chunks,
+            elapsed_seconds=track.position_seconds - start,
+            window_seconds=max(end - start, 0.5),
+        )

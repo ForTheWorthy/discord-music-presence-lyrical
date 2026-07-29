@@ -86,6 +86,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show a Discord playback progress bar",
     )
     parser.add_argument(
+        "--max-lyric-chars",
+        type=int,
+        default=None,
+        help="Max characters per lyric chunk under the username (default 40)",
+    )
+    parser.add_argument(
+        "--no-split-lyrics",
+        action="store_true",
+        help="Do not split long lyric lines into timed chunks",
+    )
+    parser.add_argument(
         "--musixmatch-token",
         default=os.environ.get("MUSIXMATCH_TOKEN"),
         help="Optional Musixmatch usertoken (otherwise one is fetched automatically)",
@@ -184,6 +195,14 @@ def main(argv: list[str] | None = None) -> int:
         lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.35)),
         show_album_cover=not bool(
             args.no_album_cover or config.get("show_album_cover") is False
+        ),
+        max_lyric_chars=int(
+            args.max_lyric_chars
+            if args.max_lyric_chars is not None
+            else config.get("max_lyric_chars", 40)
+        ),
+        split_long_lyrics=not bool(
+            args.no_split_lyrics or config.get("split_long_lyrics") is False
         ),
     )
 

@@ -215,6 +215,59 @@ def test_service_includes_album_cover_url():
     assert transport.updates[0]["large_text"] == "Album"
 
 
+def test_service_splits_long_lyrics_across_line_window():
+    long_line = "Like we always do at this time I look so lonely nevertheless"
+    lines = (
+        LyricLine(0.0, long_line),
+        LyricLine(6.0, "next"),
+    )
+    lyrics = Lyrics(
+        track_name="Song",
+        artist_name="Artist",
+        album_name="Album",
+        duration=100,
+        instrumental=False,
+        synced_lines=lines,
+    )
+    positions = iter([0.2, 3.2, 6.2])
+
+    def provider():
+        return Track(
+            title="Song",
+            artist="Artist",
+            duration_seconds=100,
+            position_seconds=next(positions),
+            playing=True,
+        )
+
+    transport = FakeTransport()
+    presence = DiscordPresence("123", transport=transport)
+    service = LyricPresenceService(
+        media=StaticTrackBackend(provider),
+        lyrics_client=FakeLyricsClient(lyrics),
+        presence=presence,
+        config=SyncConfig(
+            show_progress=False,
+            show_album_cover=False,
+            max_lyric_chars=24,
+            lyric_lead_seconds=0.0,
+        ),
+    )
+    service.tick()
+    service.tick()
+    service.tick()
+
+    assert len(transport.updates[0]["details"]) <= 24
+    assert transport.updates[0]["details"] != transport.updates[1]["details"]
+    assert transport.updates[2]["details"] == "next"
+    assert " ".join(
+        [
+            transport.updates[0]["details"],
+            transport.updates[1]["details"],
+        ]
+    ) in long_line or long_line.startswith(transport.updates[0]["details"])
+
+
 def test_status_display_can_use_state_field():
     transport = FakeTransport()
     presence = DiscordPresence("123", transport=transport, status_display="state")

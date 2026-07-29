@@ -44,12 +44,31 @@ def parse_lrc(synced_lyrics: str | None) -> tuple[LyricLine, ...]:
 
 def line_at(lines: tuple[LyricLine, ...], position_seconds: float) -> LyricLine | None:
     """Return the lyric line active at the given playback position."""
+    current, _start, _end = line_window(lines, position_seconds)
+    return current
+
+
+def line_window(
+    lines: tuple[LyricLine, ...],
+    position_seconds: float,
+) -> tuple[LyricLine | None, float | None, float | None]:
+    """Return the active line plus its [start, end) playback window."""
     if not lines:
-        return None
+        return None, None, None
     current: LyricLine | None = None
-    for line in lines:
+    current_index = -1
+    for index, line in enumerate(lines):
         if line.time_seconds <= position_seconds:
             current = line
+            current_index = index
         else:
             break
-    return current
+    if current is None:
+        return None, None, None
+    start = current.time_seconds
+    if current_index + 1 < len(lines):
+        end = lines[current_index + 1].time_seconds
+    else:
+        # Hold the final line for a short window so trailing chunks can still cycle.
+        end = start + 8.0
+    return current, start, end
