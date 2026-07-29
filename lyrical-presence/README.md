@@ -10,9 +10,9 @@ Discord activity fields:
 
 | Field | Content |
 | --- | --- |
-| **Listening to** | First part of the current lyric (fits under the username) |
-| **Details** (first line) | First part of the lyric / music symbols |
-| **State** (second line) | Rest of a long lyric, otherwise `Artist — Song` |
+| **Listening to** | Current lyric line (or `♪ ♪ ♪` during instrumentals) |
+| **Details** (first line) | Current lyric line / music symbols |
+| **State** (second line) | `Artist — Song` |
 | **State** (second line) | `Artist — Song` |
 | **Large image** | Album cover (looked up via iTunes Search) |
 | Activity type | Listening |
@@ -53,7 +53,7 @@ cp lyrical-presence.example.json lyrical-presence.json
 
 Optional: under Discord Developer Portal → your app → Rich Presence → Art Assets, you can add images later; lyrics work without them.
 
-If lyrics still feel a bit late, raise `lyric_lead_seconds` in the config (e.g. `0.5` or `0.75`) so lines switch slightly early to offset Discord update latency.
+If lyrics still feel a bit late, raise `lyric_lead_seconds` in the config (e.g. `0.75`) so lines switch slightly early to offset Discord update latency.
 
 ## Run
 
@@ -71,10 +71,9 @@ If updates seem to pause until you click or type in the console window, that is 
 
 | Flag | Meaning |
 | --- | --- |
-| `--poll-interval 0.25` | How often to poll media / refresh lyrics (default 0.25s) |
+| `--poll-interval 0.1` | How often to poll media / refresh lyrics (default 0.1s) |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
-| `--max-lyric-chars 40` | Max characters on the first lyric / under-username line |
 | `--lyrics-dir path` | Folder of local `.lrc` overrides |
 | `--no-album-cover` | Disable album cover lookup / display |
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |

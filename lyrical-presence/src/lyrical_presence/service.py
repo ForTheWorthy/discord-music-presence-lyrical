@@ -20,7 +20,8 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class SyncConfig:
-    poll_interval_seconds: float = 0.25
+    # Poll often so short lyric lines are not missed before the next one starts.
+    poll_interval_seconds: float = 0.1
     clear_on_pause: bool = False
     show_progress: bool = True
     paused_lyric_prefix: str = "⏸ "
@@ -30,10 +31,8 @@ class SyncConfig:
     music_symbol_interval_seconds: float = 9999.0
     music_symbol_repeat: int = 3
     # Switch lyric lines slightly early to offset Discord/OS update latency.
-    lyric_lead_seconds: float = 0.35
+    lyric_lead_seconds: float = 0.5
     show_album_cover: bool = True
-    # First activity line / under-username text target length.
-    max_lyric_chars: int = 40
 
 
 class LyricPresenceService:

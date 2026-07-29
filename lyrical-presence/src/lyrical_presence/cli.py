@@ -86,12 +86,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show a Discord playback progress bar",
     )
     parser.add_argument(
-        "--max-lyric-chars",
-        type=int,
-        default=None,
-        help="Max characters on the first lyric line / under-username text (default 40)",
-    )
-    parser.add_argument(
         "--musixmatch-token",
         default=os.environ.get("MUSIXMATCH_TOKEN"),
         help="Optional Musixmatch usertoken (otherwise one is fetched automatically)",
@@ -175,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         poll_interval_seconds=float(
             args.poll_interval
             if args.poll_interval is not None
-            else config.get("poll_interval_seconds", 0.25)
+            else config.get("poll_interval_seconds", 0.1)
         ),
         clear_on_pause=bool(args.clear_on_pause or config.get("clear_on_pause", False)),
         show_progress=not bool(args.no_progress or config.get("show_progress") is False),
@@ -187,28 +181,18 @@ def main(argv: list[str] | None = None) -> int:
             config.get("music_symbol_interval_seconds", 9999.0)
         ),
         music_symbol_repeat=int(config.get("music_symbol_repeat", 3)),
-        lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.35)),
+        lyric_lead_seconds=float(config.get("lyric_lead_seconds", 0.5)),
         show_album_cover=not bool(
             args.no_album_cover or config.get("show_album_cover") is False
         ),
-        max_lyric_chars=int(
-            args.max_lyric_chars
-            if args.max_lyric_chars is not None
-            else config.get("max_lyric_chars", 40)
-        ),
     )
 
-    max_lyric_chars = sync.max_lyric_chars
     presence_kwargs = {
         "status_display": str(
             args.status_display or config.get("status_display", "details")
         ).lower(),
         "show_player_in_state": bool(
             args.show_player or config.get("show_player_in_state", False)
-        ),
-        "max_lyric_chars": max_lyric_chars,
-        "min_update_interval_seconds": float(
-            config.get("min_update_interval_seconds", 1.0)
         ),
     }
     presence = (
