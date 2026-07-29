@@ -86,6 +86,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show a Discord playback progress bar",
     )
     parser.add_argument(
+        "--musixmatch-token",
+        default=os.environ.get("MUSIXMATCH_TOKEN"),
+        help="Optional Musixmatch usertoken (otherwise one is fetched automatically)",
+    )
+    parser.add_argument(
         "--lyrics-dir",
         type=Path,
         help="Folder of local .lrc files (default: AppData/Lyrical Presence/lyrics)",
@@ -202,11 +207,19 @@ def main(argv: list[str] | None = None) -> int:
     lyrics_dir = args.lyrics_dir or (
         Path(config["lyrics_dir"]) if config.get("lyrics_dir") else default_lyrics_dir()
     )
+    musixmatch_token = (
+        args.musixmatch_token
+        or os.environ.get("MUSIXMATCH_TOKEN")
+        or config.get("musixmatch_token")
+    )
     service = LyricPresenceService(
         media=create_media_backend(),
         presence=presence,
         config=sync,
-        lyrics_fetcher=build_default_fetcher(lyrics_dir),
+        lyrics_fetcher=build_default_fetcher(
+            lyrics_dir,
+            musixmatch_token=str(musixmatch_token) if musixmatch_token else None,
+        ),
     )
     service.run_forever()
     return 0

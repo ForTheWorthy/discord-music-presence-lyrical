@@ -153,8 +153,8 @@ class LyricPresenceService:
         self._lyrics_cache[identity] = lyrics
         if lyrics is None:
             log.info(
-                "No synced lyrics found (tried local .lrc, LRCLIB, NetEase). "
-                "Apple Music in-app lyrics are not readable by third-party apps."
+                "No synced lyrics found (tried local .lrc, Musixmatch, LRCLIB, NetEase). "
+                "Apple Music in-app lyrics aren't directly readable; Musixmatch is the shared catalog."
             )
         elif lyrics.instrumental:
             log.info("Track is instrumental")

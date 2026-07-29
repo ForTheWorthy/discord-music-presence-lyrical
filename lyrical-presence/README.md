@@ -90,14 +90,16 @@ If you only want lyrics in your status, pause/disable Music Presence while Lyric
 
 ## Lyrics sources
 
-Lyrical Presence cannot read Apple Music’s built-in lyrics (Apple does not expose them to third-party apps). Instead it tries, in order:
+Lyrical Presence cannot read Apple Music’s private lyric stream directly, but Apple Music
+licenses lyrics from **Musixmatch**, so we query Musixmatch as well. Lookup order:
 
 1. **Local `.lrc` files** in `%APPDATA%\Lyrical Presence\lyrics`  
    Name them like `Artist - Song Title.lrc`
-2. **[LRCLIB](https://lrclib.net)**
-3. **NetEase Cloud Music** search (synced LRC fallback)
+2. **Musixmatch** (same lyric catalog Apple Music uses)
+3. **[LRCLIB](https://lrclib.net)**
+4. **NetEase Cloud Music** search (extra synced LRC fallback)
 
-If a song has lyrics in Apple Music but nowhere else, export/save an `.lrc` into that folder (or contribute the lyrics to LRCLIB).
+Optional: set `musixmatch_token` in config / `MUSIXMATCH_TOKEN` if automatic token fetch is rate-limited.
 
 ## Privacy
 

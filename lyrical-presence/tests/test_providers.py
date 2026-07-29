@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from lyrical_presence.models import Lyrics, LyricLine, Track
-from lyrical_presence.providers import LocalLrcProvider, LyricsFetcher, NetEaseClient
+from lyrical_presence.providers import LocalLrcProvider, LyricsFetcher, MusixmatchClient, NetEaseClient
 
 
 class DummyResponse:
@@ -59,6 +59,50 @@ def test_local_lrc_provider_reads_file(tmp_path: Path):
     lyrics = provider.fetch_for_track(Track("Song", "Artist"))
     assert lyrics is not None
     assert [line.text for line in lyrics.synced_lines] == ["hello", "world"]
+
+
+def test_musixmatch_client_parses_search_and_subtitle():
+    session = DummySession(
+        {
+            "track.search": {
+                "message": {
+                    "header": {"status_code": 200},
+                    "body": {
+                        "track_list": [
+                            {
+                                "track": {
+                                    "track_id": 99,
+                                    "track_name": "Song",
+                                    "artist_name": "Artist",
+                                    "album_name": "Album",
+                                    "track_length": 120,
+                                    "has_subtitles": 1,
+                                }
+                            }
+                        ]
+                    },
+                }
+            },
+            "track.subtitle.get": {
+                "message": {
+                    "header": {"status_code": 200},
+                    "body": {
+                        "subtitle": {
+                            "subtitle_body": "[00:01.00] hello\n[00:02.00] world\n"
+                        }
+                    },
+                }
+            },
+        }
+    )
+    from lyrical_presence.providers import MusixmatchClient
+
+    client = MusixmatchClient(session=session, user_token="test-token")
+    lyrics = client.fetch_for_track(
+        Track("Song", "Artist", "Album", duration_seconds=120)
+    )
+    assert lyrics is not None
+    assert lyrics.synced_lines[0].text == "hello"
 
 
 def test_netease_client_parses_search_and_lrc():
