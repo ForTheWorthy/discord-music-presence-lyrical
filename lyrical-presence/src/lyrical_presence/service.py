@@ -3,15 +3,16 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from lyrical_presence.clock import PlaybackClock
 from lyrical_presence.covers import CoverArtClient
 from lyrical_presence.discord_rpc import DiscordPresence
 from lyrical_presence.lrc import line_at
-from lyrical_presence.lrclib import LrclibClient
 from lyrical_presence.media import MediaBackend
 from lyrical_presence.models import Lyrics, Track
 from lyrical_presence.normalize import normalize_track
+from lyrical_presence.providers import LyricsFetcher, build_default_fetcher
 from lyrical_presence.symbols import DEFAULT_MUSIC_SYMBOLS, format_music_only
 
 log = logging.getLogger(__name__)
@@ -38,16 +39,23 @@ class LyricPresenceService:
     def __init__(
         self,
         media: MediaBackend,
-        lyrics_client: LrclibClient,
         presence: DiscordPresence,
         config: SyncConfig | None = None,
         cover_client: CoverArtClient | None = None,
+        lyrics_fetcher: LyricsFetcher | None = None,
+        # Back-compat for tests that pass a single provider-like client.
+        lyrics_client: Any | None = None,
     ) -> None:
         self.media = media
-        self.lyrics_client = lyrics_client
         self.presence = presence
         self.config = config or SyncConfig()
         self.cover_client = cover_client or CoverArtClient()
+        if lyrics_fetcher is not None:
+            self.lyrics_fetcher = lyrics_fetcher
+        elif lyrics_client is not None:
+            self.lyrics_fetcher = LyricsFetcher([lyrics_client])
+        else:
+            self.lyrics_fetcher = build_default_fetcher()
         self._lyrics_cache: dict[tuple[str, str, str], Lyrics | None] = {}
         self._current_identity: tuple[str, str, str] | None = None
         self._last_lyric_text: str | None = None
@@ -141,10 +149,13 @@ class LyricPresenceService:
         if identity in self._lyrics_cache:
             return self._lyrics_cache[identity]
         log.info("Fetching lyrics for %s — %s", track.artist, track.title)
-        lyrics = self.lyrics_client.fetch_for_track(track)
+        lyrics = self.lyrics_fetcher.fetch_for_track(track)
         self._lyrics_cache[identity] = lyrics
         if lyrics is None:
-            log.info("No lyrics found")
+            log.info(
+                "No synced lyrics found (tried local .lrc, LRCLIB, NetEase). "
+                "Apple Music in-app lyrics are not readable by third-party apps."
+            )
         elif lyrics.instrumental:
             log.info("Track is instrumental")
         elif lyrics.has_synced:

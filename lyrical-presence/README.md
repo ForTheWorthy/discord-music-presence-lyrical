@@ -73,6 +73,7 @@ If updates seem to pause until you click or type in the console window, that is 
 | `--poll-interval 0.25` | How often to poll media / refresh lyrics (default 0.25s) |
 | `--clear-on-pause` | Hide presence while paused |
 | `--no-progress` | Disable Discord progress timestamps |
+| `--lyrics-dir path` | Folder of local `.lrc` overrides |
 | `--no-album-cover` | Disable album cover lookup / display |
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |
 | `--show-player` | Append the media player name to the state line |
@@ -86,6 +87,17 @@ If updates seem to pause until you click or type in the console window, that is 
 Both apps can run at once because they use **different Discord application IDs**. Discord may show multiple activities; which one is featured depends on Discord client settings.
 
 If you only want lyrics in your status, pause/disable Music Presence while Lyrical Presence runs.
+
+## Lyrics sources
+
+Lyrical Presence cannot read Apple Music’s built-in lyrics (Apple does not expose them to third-party apps). Instead it tries, in order:
+
+1. **Local `.lrc` files** in `%APPDATA%\Lyrical Presence\lyrics`  
+   Name them like `Artist - Song Title.lrc`
+2. **[LRCLIB](https://lrclib.net)**
+3. **NetEase Cloud Music** search (synced LRC fallback)
+
+If a song has lyrics in Apple Music but nowhere else, export/save an `.lrc` into that folder (or contribute the lyrics to LRCLIB).
 
 ## Privacy
 

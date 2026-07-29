@@ -8,8 +8,8 @@ from pathlib import Path
 
 from lyrical_presence.consoleutil import configure_windows_console
 from lyrical_presence.discord_rpc import DiscordPresence
-from lyrical_presence.lrclib import LrclibClient
 from lyrical_presence.media import create_media_backend
+from lyrical_presence.providers import build_default_fetcher, default_lyrics_dir
 from lyrical_presence.service import LyricPresenceService, SyncConfig
 from lyrical_presence.symbols import DEFAULT_MUSIC_SYMBOLS
 
@@ -84,6 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-progress",
         action="store_true",
         help="Do not show a Discord playback progress bar",
+    )
+    parser.add_argument(
+        "--lyrics-dir",
+        type=Path,
+        help="Folder of local .lrc files (default: AppData/Lyrical Presence/lyrics)",
     )
     parser.add_argument(
         "--no-album-cover",
@@ -194,11 +199,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.dry_run
         else DiscordPresence(str(client_id), **presence_kwargs)
     )
+    lyrics_dir = args.lyrics_dir or (
+        Path(config["lyrics_dir"]) if config.get("lyrics_dir") else default_lyrics_dir()
+    )
     service = LyricPresenceService(
         media=create_media_backend(),
-        lyrics_client=LrclibClient(),
         presence=presence,
         config=sync,
+        lyrics_fetcher=build_default_fetcher(lyrics_dir),
     )
     service.run_forever()
     return 0

@@ -23,6 +23,8 @@ USER_AGENT = (
 class LrclibClient:
     """Client for the free LRCLIB synced-lyrics API."""
 
+    name = "lrclib"
+
     def __init__(
         self,
         base_url: str = DEFAULT_BASE_URL,
