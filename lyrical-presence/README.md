@@ -61,6 +61,16 @@ If lyrics still feel a bit late, raise `lyric_lead_seconds` in the config (e.g. 
 lyrical-presence --client-id YOUR_APPLICATION_ID -v
 ```
 
+### Windows: start without typing commands
+
+1. One-time: double-click `setup-windows.bat`
+2. Put your Discord Application ID in `lyrical-presence.json` as `client_id`
+3. After that, just double-click `start.bat`
+
+Optional:
+- `start-hidden.bat` — starts without keeping a console window open
+- To launch at login: press `Win+R`, type `shell:startup`, and put a shortcut to `start-hidden.bat` (or `start.bat`) in that folder
+
 Play a song in any media player your OS exposes (Spotify, browsers with MPRIS/SMTC, VLC, etc.). When timed lyrics are found, Discord updates on each new line.
 
 ### Windows tip
