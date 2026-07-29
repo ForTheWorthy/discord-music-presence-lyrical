@@ -204,9 +204,11 @@ class MusixmatchClient:
         return text or None
 
     def _api(self, action: str, params: list[tuple[str, str]]) -> dict[str, Any] | None:
-        token = self._ensure_token()
-        if token is None and action != "token.get":
-            return None
+        token = None
+        if action != "token.get":
+            token = self._ensure_token()
+            if token is None:
+                return None
         query = list(params)
         query.append(("app_id", MUSIXMATCH_APP_ID))
         if token:
