@@ -57,6 +57,8 @@ If lyrics feel late, raise `lyric_lead_seconds` slightly (e.g. `0.35`). Keep it 
 
 Discord updates are **queued and drained** about every `discord_min_interval_seconds` (default `1.0`). Rapid short lines wait their turn instead of overwriting each other or tripping rate limits. If Discord starts rejecting updates, raise the interval toward `1.5`. To show more of a very fast verse before the backlog trims, raise `discord_max_queue` (default `12`).
 
+Providers often split one sentence into several sub-second cues. With `merge_short_lines` (default `true`), those fragments are combined into fewer timed lines before syncing. By default the merge threshold matches `discord_min_interval_seconds`; override with `merge_lines_under_seconds`, and change the joiner with `merge_line_separator` (default is a space).
+
 ## Run
 
 ```bash

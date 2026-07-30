@@ -157,6 +157,7 @@ def test_service_queues_short_lines_and_drains_at_discord_interval(monkeypatch):
             lyric_lead_seconds=0,
             discord_min_interval_seconds=1.0,
             discord_max_queue=8,
+            merge_short_lines=False,
         ),
     )
     monkeypatch.setattr("lyrical_presence.service.time.monotonic", lambda: clock["now"])
