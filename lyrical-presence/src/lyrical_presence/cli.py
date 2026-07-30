@@ -203,7 +203,6 @@ def main(argv: list[str] | None = None) -> int:
             config.get("discord_min_interval_seconds", 1.0)
         ),
         discord_max_queue=int(config.get("discord_max_queue", 12)),
-        debug_logging=debug_logging,
     )
 
     presence_kwargs = {

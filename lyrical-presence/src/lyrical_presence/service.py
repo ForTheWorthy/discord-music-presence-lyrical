@@ -38,8 +38,6 @@ class SyncConfig:
     discord_min_interval_seconds: float = 1.0
     # If we fall behind, keep only the newest N queued lines.
     discord_max_queue: int = 12
-    # Extra pipeline tracing: queued / waiting / sent / skipped / failed.
-    debug_logging: bool = False
 
 
 class LyricPresenceService:
