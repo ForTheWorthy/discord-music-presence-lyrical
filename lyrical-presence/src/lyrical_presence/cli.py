@@ -127,6 +127,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--debug-logging",
+        action="store_true",
+        help="Enable pipeline debug logging (same as debug_logging in config)",
+    )
     return parser
 
 
@@ -134,14 +139,22 @@ def main(argv: list[str] | None = None) -> int:
     configure_windows_console()
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    # Load config before finalizing log level so debug_logging can apply.
     logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
+        level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         force=True,
     )
+    config = load_config(args.config)
+    debug_logging = bool(
+        args.verbose or args.debug_logging or config.get("debug_logging")
+    )
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG if debug_logging else logging.INFO)
     # Ensure log lines flush immediately on Windows consoles.
-    for handler in logging.getLogger().handlers:
-        handler.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    for handler in root.handlers:
+        handler.setLevel(logging.DEBUG if debug_logging else logging.INFO)
         flush = getattr(handler, "flush", None)
         stream = getattr(handler, "stream", None)
         if stream is not None:
@@ -153,8 +166,9 @@ def main(argv: list[str] | None = None) -> int:
                 pass
         if callable(flush):
             flush()
+    if debug_logging:
+        log.info("Debug logging enabled (pipeline queued/sent/skipped/failed tracing)")
 
-    config = load_config(args.config)
     client_id = args.client_id or config.get("client_id")
     if not args.dry_run and not client_id:
         parser.error(
@@ -189,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
             config.get("discord_min_interval_seconds", 1.0)
         ),
         discord_max_queue=int(config.get("discord_max_queue", 12)),
+        debug_logging=debug_logging,
     )
 
     presence_kwargs = {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from lyrical_presence.models import Track
 
@@ -11,6 +11,8 @@ log = logging.getLogger(__name__)
 # Discord Rich Presence string limits (hard API caps).
 MAX_PRESENCE_CHARS = 128
 MAX_NAME_CHARS = 128
+
+PresenceUpdateResult = Literal["sent", "skipped_unchanged", "failed"]
 
 
 class PresenceTransport(Protocol):
@@ -59,7 +61,7 @@ class DiscordPresence:
         show_progress: bool = True,
         large_image: str | None = None,
         large_text: str | None = None,
-    ) -> bool:
+    ) -> PresenceUpdateResult:
         details = self._clip(lyric_text or track.title)
         state = self._clip(
             self._state_for(
@@ -90,8 +92,8 @@ class DiscordPresence:
             payload["end"] = int(end)
         return self._apply(payload)
 
-    def update_fallback(self, track: Track, *, show_progress: bool = True) -> None:
-        self.update_lyrics(track, None, show_progress=show_progress)
+    def update_fallback(self, track: Track, *, show_progress: bool = True) -> PresenceUpdateResult:
+        return self.update_lyrics(track, None, show_progress=show_progress)
 
     def clear(self) -> None:
         if not self._connected or self._transport is None:
@@ -115,7 +117,7 @@ class DiscordPresence:
         finally:
             self._connected = False
 
-    def _apply(self, payload: dict[str, Any]) -> bool:
+    def _apply(self, payload: dict[str, Any]) -> PresenceUpdateResult:
         if not self._connected or self._transport is None:
             raise RuntimeError("Discord presence is not connected")
         comparable = {
@@ -131,20 +133,14 @@ class DiscordPresence:
                 if key not in {"start", "end"}
             }
         if comparable == last_comparable:
-            return True
+            return "skipped_unchanged"
         try:
             self._transport.update(**payload)
             self._last_payload = payload
-            log.debug(
-                "Presence updated: name=%r details=%r state=%r",
-                payload.get("name"),
-                payload.get("details"),
-                payload.get("state"),
-            )
-            return True
+            return "sent"
         except Exception as exc:  # noqa: BLE001
             log.warning("Discord presence update failed: %s", exc)
-            return False
+            return "failed"
 
     def _status_display_type(self) -> Any | None:
         try:
