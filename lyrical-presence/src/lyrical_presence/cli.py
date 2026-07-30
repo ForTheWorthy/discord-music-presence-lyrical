@@ -112,6 +112,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Which field Discord shows after 'Listening to' (default: details = lyrics)",
     )
     parser.add_argument(
+        "--no-censor-profanity",
+        action="store_true",
+        help="Show lyric profanity uncensored in Discord",
+    )
+    parser.add_argument(
         "--no-music-symbols",
         action="store_true",
         help="Disable ♪/♫ placeholders during instrumentals / missing lyrics",
@@ -189,6 +194,15 @@ def main(argv: list[str] | None = None) -> int:
             config.get("discord_min_interval_seconds", 1.0)
         ),
         discord_max_queue=int(config.get("discord_max_queue", 12)),
+        censor_profanity=not bool(
+            args.no_censor_profanity or config.get("censor_profanity") is False
+        ),
+        censor_mask=str(config.get("censor_mask", "*") or "*"),
+        extra_censored_words=tuple(
+            str(w).strip().lower()
+            for w in (config.get("extra_censored_words") or [])
+            if str(w).strip()
+        ),
     )
 
     presence_kwargs = {
