@@ -189,6 +189,13 @@ def main(argv: list[str] | None = None) -> int:
             config.get("discord_min_interval_seconds", 1.0)
         ),
         discord_max_queue=int(config.get("discord_max_queue", 12)),
+        merge_short_lines=config.get("merge_short_lines", True) is not False,
+        merge_lines_under_seconds=(
+            None
+            if config.get("merge_lines_under_seconds") is None
+            else float(config.get("merge_lines_under_seconds"))
+        ),
+        merge_line_separator=str(config.get("merge_line_separator", " ")),
     )
 
     presence_kwargs = {

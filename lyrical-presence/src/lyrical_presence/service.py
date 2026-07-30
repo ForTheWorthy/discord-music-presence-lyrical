@@ -7,9 +7,10 @@ from typing import Any
 
 from lyrical_presence.clock import PlaybackClock
 from lyrical_presence.covers import CoverArtClient
-from lyrical_presence.discord_rpc import DiscordPresence
+from lyrical_presence.discord_rpc import DiscordPresence, MAX_PRESENCE_CHARS
 from lyrical_presence.lrc import line_window
 from lyrical_presence.media import MediaBackend
+from lyrical_presence.merge import merge_short_lyric_lines
 from lyrical_presence.models import Lyrics, Track
 from lyrical_presence.normalize import normalize_track
 from lyrical_presence.providers import LyricsFetcher, build_default_fetcher
@@ -38,6 +39,11 @@ class SyncConfig:
     discord_min_interval_seconds: float = 1.0
     # If we fall behind, keep only the newest N queued lines.
     discord_max_queue: int = 12
+    # Combine provider fragments that are shorter than the Discord send cadence.
+    merge_short_lines: bool = True
+    # None = use discord_min_interval_seconds as the merge threshold.
+    merge_lines_under_seconds: float | None = None
+    merge_line_separator: str = " "
 
 
 class LyricPresenceService:
@@ -213,6 +219,8 @@ class LyricPresenceService:
             return self._lyrics_cache[identity]
         log.info("Fetching lyrics for %s — %s", track.artist, track.title)
         lyrics = self.lyrics_fetcher.fetch_for_track(track)
+        if lyrics is not None and lyrics.has_synced and self.config.merge_short_lines:
+            lyrics = self._with_merged_short_lines(lyrics)
         self._lyrics_cache[identity] = lyrics
         if lyrics is None:
             log.info(
@@ -226,6 +234,35 @@ class LyricPresenceService:
         else:
             log.info("Only plain lyrics available; timed line sync disabled")
         return lyrics
+
+    def _with_merged_short_lines(self, lyrics: Lyrics) -> Lyrics:
+        threshold = self.config.merge_lines_under_seconds
+        if threshold is None:
+            threshold = self.config.discord_min_interval_seconds
+        before = len(lyrics.synced_lines)
+        merged_lines = merge_short_lyric_lines(
+            lyrics.synced_lines,
+            min_duration_seconds=float(threshold),
+            separator=self.config.merge_line_separator,
+            max_chars=MAX_PRESENCE_CHARS,
+        )
+        after = len(merged_lines)
+        if after != before:
+            log.info(
+                "Merged short lyric lines: %d → %d (threshold %.2fs)",
+                before,
+                after,
+                float(threshold),
+            )
+        return Lyrics(
+            track_name=lyrics.track_name,
+            artist_name=lyrics.artist_name,
+            album_name=lyrics.album_name,
+            duration=lyrics.duration,
+            instrumental=lyrics.instrumental,
+            synced_lines=merged_lines,
+            plain_lyrics=lyrics.plain_lyrics,
+        )
 
     def _presence_text(self, track: Track, lyrics: Lyrics | None) -> str:
         lyric = self._active_lyric_text(track, lyrics)
