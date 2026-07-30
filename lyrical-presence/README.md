@@ -57,6 +57,8 @@ If lyrics feel late, raise `lyric_lead_seconds` slightly (e.g. `0.35`). Keep it 
 
 Discord updates are **queued and drained** about every `discord_min_interval_seconds` (default `1.0`). Rapid short lines wait their turn instead of overwriting each other or tripping rate limits. If Discord starts rejecting updates, raise the interval toward `1.5`. To show more of a very fast verse before the backlog trims, raise `discord_max_queue` (default `12`).
 
+Set `"debug_logging": true` (or pass `-v` / `--debug-logging`) to trace the update pipeline: `[pipeline] queued`, `waiting for cadence`, `[discord] sent`, `skipped (unchanged payload)`, and `send failed`.
+
 ## Run
 
 ```bash
@@ -91,9 +93,9 @@ If updates seem to pause until you click or type in the console window, that is 
 | `--status-display details` | Field used after "Listening to" (`details` = lyrics, default) |
 | `--show-player` | Append the media player name to the state line |
 | `--no-music-symbols` | Disable ♪/♫ placeholders for instrumentals |
+| `-v` / `--debug-logging` | Debug logging, including queued/sent/skipped/failed pipeline tracing |
 | `--dry-run` | Print lyric updates without connecting to Discord |
 | `--config path.json` | Custom config path |
-| `-v` | Debug logging |
 
 ## Using with Music Presence
 

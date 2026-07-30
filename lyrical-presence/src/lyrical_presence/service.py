@@ -139,18 +139,23 @@ class LyricPresenceService:
 
     def _enqueue_lyric(self, lyric_text: str) -> None:
         if lyric_text == self._last_detected_lyric:
+            log.debug("[pipeline] lyric unchanged, not queued: %s", lyric_text)
             return
         self._last_detected_lyric = lyric_text
         if self._pending_lyrics and self._pending_lyrics[-1] == lyric_text:
+            log.debug("[pipeline] lyric already at tail of queue: %s", lyric_text)
             return
         self._pending_lyrics.append(lyric_text)
-        log.info("Queued lyric (%d waiting): %s", len(self._pending_lyrics), lyric_text)
+        log.info("[pipeline] queued (%d waiting): %s", len(self._pending_lyrics), lyric_text)
 
         max_queue = max(1, self.config.discord_max_queue)
         if len(self._pending_lyrics) > max_queue:
             dropped = len(self._pending_lyrics) - max_queue
             self._pending_lyrics = self._pending_lyrics[-max_queue:]
-            log.debug("Dropped %d oldest queued lyrics to limit backlog", dropped)
+            log.debug(
+                "[pipeline] dropped %d oldest queued lyrics to limit backlog",
+                dropped,
+            )
 
     def _flush_queue(self) -> None:
         track = self._current_track
@@ -160,11 +165,19 @@ class LyricPresenceService:
         now = time.monotonic()
         min_interval = max(0.0, self.config.discord_min_interval_seconds)
         if self._last_sent_lyric is not None and (now - self._last_sent_at) < min_interval:
+            if self._pending_lyrics:
+                remaining = min_interval - (now - self._last_sent_at)
+                log.debug(
+                    "[pipeline] waiting for cadence (%.2fs left, %d queued)",
+                    remaining,
+                    len(self._pending_lyrics),
+                )
             return
 
         while self._pending_lyrics:
             lyric_text = self._pending_lyrics.pop(0)
             if lyric_text == self._last_sent_lyric:
+                log.debug("[pipeline] skip duplicate already sent: %s", lyric_text)
                 continue
 
             cover_url = None
@@ -174,8 +187,7 @@ class LyricPresenceService:
                     self._cover_cache[identity] = self.cover_client.cover_url_for(track)
                 cover_url = self._cover_cache[identity]
 
-            log.info("Lyric: %s", lyric_text)
-            ok = self.presence.update_lyrics(
+            result = self.presence.update_lyrics(
                 track,
                 lyric_text,
                 show_progress=self.config.show_progress,
@@ -184,10 +196,18 @@ class LyricPresenceService:
             )
             # Always advance the send clock so a hard Discord failure still backs off.
             self._last_sent_at = now
-            if ok:
+            if result == "sent":
                 self._last_sent_lyric = lyric_text
+                log.info("[discord] sent: %s", lyric_text)
+            elif result == "skipped_unchanged":
+                self._last_sent_lyric = lyric_text
+                log.debug(
+                    "[discord] skipped (unchanged payload): %s",
+                    lyric_text,
+                )
             else:
                 self._pending_lyrics.insert(0, lyric_text)
+                log.warning("[discord] send failed; will retry: %s", lyric_text)
             return
 
     def _with_lyric_lead(self, track: Track) -> Track:
