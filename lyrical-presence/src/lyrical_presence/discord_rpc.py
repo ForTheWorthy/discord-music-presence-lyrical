@@ -90,9 +90,6 @@ class DiscordPresence:
             payload["end"] = int(end)
         return self._apply(payload)
 
-    def update_fallback(self, track: Track, *, show_progress: bool = True) -> None:
-        self.update_lyrics(track, None, show_progress=show_progress)
-
     def clear(self) -> None:
         if not self._connected or self._transport is None:
             return
