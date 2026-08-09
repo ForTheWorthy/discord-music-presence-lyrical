@@ -39,6 +39,7 @@ _DEFAULT_PROFANITY: frozenset[str] = frozenset(
         "motherfuckers",
         "motherfucking",
         "nigga",
+        "niggas",
         "nigger",
         "piss",
         "pissed",
