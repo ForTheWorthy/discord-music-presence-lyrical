@@ -1,6 +1,6 @@
 # Lyrical Presence
 
-Companion for [Music Presence](https://github.com/ungive/discord-music-presence) that shows **synced lyrics line-by-line** in Discord Rich Presence.
+Crappily Vibecoded Companion for [Music Presence](https://github.com/ungive/discord-music-presence) that shows **synced lyrics line-by-line** in Discord Rich Presence.
 
 Music Presence itself is closed-source (this GitHub repo only ships docs and release assets). This companion reads whatever your OS reports as currently playing, fetches timed lyrics from [LRCLIB](https://lrclib.net), and updates Discord as each lyric line becomes active.
 
